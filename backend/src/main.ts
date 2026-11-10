@@ -1,8 +1,39 @@
-import { NestFactory } from '@nestjs/core';
+import { existsSync } from 'node:fs';
+import { Module } from 'node:module';
+import { delimiter, join } from 'node:path';
 import type { Request, Response } from 'express';
-import { AppModule } from './app.module.js';
+
+function configureVercelModuleResolution() {
+  if (process.env.VERCEL !== '1') return;
+
+  const nodePaths =
+    process.env.NODE_PATH?.split(delimiter).filter(Boolean) ?? [];
+  const backendNodeModules = [
+    join(__dirname, 'backend', 'node_modules'),
+    join(__dirname, '..', 'node_modules'),
+    join(process.cwd(), 'backend', 'node_modules'),
+    join(process.cwd(), 'node_modules'),
+  ].filter(
+    (path) =>
+      existsSync(join(path, '@nestjs', 'core', 'package.json')) &&
+      !nodePaths.includes(path),
+  );
+  if (backendNodeModules.length === 0) return;
+
+  process.env.NODE_PATH = [...nodePaths, ...backendNodeModules].join(delimiter);
+  const initializeModulePaths = Reflect.get(Module, '_initPaths');
+  if (typeof initializeModulePaths !== 'function') {
+    throw new Error('Node module path initialization is unavailable');
+  }
+  initializeModulePaths.call(Module);
+}
 
 async function createApplication() {
+  configureVercelModuleResolution();
+  const [{ NestFactory }, { AppModule }] = await Promise.all([
+    import('@nestjs/core'),
+    import('./app.module.js'),
+  ]);
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3001',
