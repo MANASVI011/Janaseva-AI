@@ -36,6 +36,8 @@ const words = {
       "Groq ಮಾದರಿ ಪ್ರವೇಶವನ್ನು ನಿರಾಕರಿಸಿದೆ. ಯೋಜನೆ ಮತ್ತು ಮಾದರಿ ಅನುಮತಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
     internalServiceNotConfigured: "ಆಂತರಿಕ AI ಸೇವೆಯ ದೃಢೀಕರಣ ಸಂರಚಿಸಲಾಗಿಲ್ಲ.",
     unavailable: "AI ಸೇವೆ ಲಭ್ಯವಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+    requestFailed: (status: number, code?: string) =>
+      `AI ವಿನಂತಿ ವಿಫಲವಾಗಿದೆ (HTTP ${status}${code ? ` · ${code}` : ""}).`,
   },
   en: {
     title: "AI application analysis",
@@ -73,6 +75,8 @@ const words = {
     internalServiceNotConfigured:
       "Internal AI service authentication is not configured.",
     unavailable: "The AI service is unavailable. Please retry.",
+    requestFailed: (status: number, code?: string) =>
+      `AI request failed (HTTP ${status}${code ? ` · ${code}` : ""}).`,
   },
 } as const;
 

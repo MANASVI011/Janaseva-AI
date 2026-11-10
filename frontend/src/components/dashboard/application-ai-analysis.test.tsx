@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DocumentApiError } from "@/lib/document-verification-api";
 import { ApplicationAiAnalysis } from "./application-ai-analysis";
 
 const api = vi.hoisted(() => ({
@@ -28,19 +29,31 @@ describe("AI application analysis", () => {
     vi.clearAllMocks();
   });
 
-  it("does not offer or render synthetic analysis when the AI service is unavailable", async () => {
+  it("allows a real analysis request when provider status is unavailable and shows the HTTP failure", async () => {
+    api.analyzeApplication.mockRejectedValue(
+      new DocumentApiError("request", 500),
+    );
     render(<ApplicationAiAnalysis applicationId="INC-2026-1208" />);
 
     const button = await screen.findByRole("button", {
       name: "Analyze Application with AI",
     });
-    expect(button).toBeDisabled();
+    expect(button).toBeEnabled();
     expect(
-      screen.getByText("The AI service is unavailable. Please retry."),
+      await screen.findByText("The AI service is unavailable. Please retry."),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/demonstration example/i),
     ).not.toBeInTheDocument();
-    expect(api.analyzeApplication).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(api.analyzeApplication).toHaveBeenCalledWith(
+        "INC-2026-1208",
+        "en",
+      );
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "AI request failed (HTTP 500).",
+    );
   });
 });

@@ -51,7 +51,9 @@ function analysisError(
   ) {
     return copy.invalidResponse;
   }
-  return copy.unavailable;
+  return cause.status >= 400
+    ? copy.requestFailed(cause.status, cause.code)
+    : copy.unavailable;
 }
 
 function FindingList({
@@ -184,10 +186,6 @@ export function ApplicationAiAnalysis({
   }, []);
 
   const providerError = getProviderError(providerStatus, copy);
-  const canRunAnalysis =
-    providerStatus !== null &&
-    ["CONNECTED", "CONFIGURED"].includes(providerStatus.status);
-
   useEffect(() => {
     if (retrySeconds <= 0) return;
     const timer = window.setTimeout(
@@ -198,9 +196,7 @@ export function ApplicationAiAnalysis({
   }, [retrySeconds]);
 
   async function runAnalysis() {
-    if (!canRunAnalysis || checkingProvider || loading || retrySeconds > 0) {
-      return;
-    }
+    if (loading) return;
     const requestId = ++analysisRequestId.current;
     setLoadingApplicationId(applicationId);
     setAnalysisErrorState(null);
@@ -250,9 +246,7 @@ export function ApplicationAiAnalysis({
         <button
           type="button"
           onClick={() => void runAnalysis()}
-          disabled={
-            loading || checkingProvider || !canRunAnalysis || retrySeconds > 0
-          }
+          disabled={loading}
           className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-[#12243d] px-3 text-xs font-medium text-white transition hover:bg-[#1b3555] disabled:cursor-wait disabled:opacity-60"
         >
           {loading ? (
