@@ -277,6 +277,14 @@ async function request<T>(
       }
       throw cause;
     }
+    if (
+      isDemoModeEnabled() &&
+      (init.method ?? "GET").toUpperCase() === "GET" &&
+      !controller.signal.aborted
+    ) {
+      const demoResponse = getDemoApiResponse(path, init);
+      if (demoResponse !== null) return demoResponse as T;
+    }
     if (controller.signal.aborted) {
       throw new DocumentApiError("timeout", 408);
     }

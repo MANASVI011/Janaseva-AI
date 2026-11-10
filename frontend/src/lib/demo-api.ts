@@ -529,7 +529,7 @@ export function getDemoApiResponse(path: string, init: RequestInit = {}) {
     return {
       provider: "Groq",
       model: "Demonstration only",
-      status: "NOT_CONFIGURED",
+      status: "UNAVAILABLE",
       reason: "AI analysis is unavailable in offline demonstration mode.",
     };
   }

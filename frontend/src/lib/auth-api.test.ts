@@ -3,8 +3,8 @@ import { getAuthSession, loginOfficer, logoutOfficer } from "@/lib/auth-api";
 import {
   getApplicationDocuments,
   getApplications,
-  getVerificationQueue,
   requestOfficerApi,
+  getVerificationQueue,
 } from "@/lib/document-verification-api";
 import {
   getFieldApplication,
@@ -182,5 +182,16 @@ describe("demo authentication", () => {
     expect(finalQueue.items.length).toBeGreaterThan(0);
     expect(report.summary.totalApplications).toBeGreaterThan(0);
     expect(history.items.length).toBeGreaterThan(0);
+  });
+
+  it("reports unavailable rather than mislabeling the Groq key as missing offline", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await expect(
+      requestOfficerApi("/ai/provider-status"),
+    ).resolves.toMatchObject({
+      provider: "Groq",
+      status: "UNAVAILABLE",
+      reason: "AI analysis is unavailable in offline demonstration mode.",
+    });
   });
 });
