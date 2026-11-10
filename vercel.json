@@ -14,7 +14,7 @@
       "root": "backend",
       "framework": "nestjs",
       "functions": {
-        "src/main.ts": {
+        "dist/main.js": {
           "maxDuration": 60
         }
       },

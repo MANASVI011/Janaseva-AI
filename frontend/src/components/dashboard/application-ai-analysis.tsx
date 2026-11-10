@@ -11,6 +11,7 @@ import {
   type AiProviderStatus,
 } from "@/lib/ai-analysis-api";
 import { getAiAnalysisCopy } from "@/lib/ai-analysis-i18n";
+import { isDemoModeEnabled } from "@/lib/document-verification-api";
 
 function analysisError(
   cause: unknown,
@@ -128,6 +129,7 @@ export function ApplicationAiAnalysis({
 }) {
   const { language } = useDashboard();
   const copy = getAiAnalysisCopy(language);
+  const demoMode = isDemoModeEnabled();
   const [analysisResult, setAnalysisResult] = useState<{
     applicationId: string;
     result: AiAnalysis;
@@ -184,6 +186,14 @@ export function ApplicationAiAnalysis({
   }, []);
 
   const providerError = getProviderError(providerStatus, copy);
+  const canShowDemoFallback =
+    demoMode &&
+    (providerStatus?.status === "UNAVAILABLE" ||
+      providerStatus?.status === "NOT_CONFIGURED");
+  const canRunAnalysis =
+    providerStatus !== null &&
+    (["CONNECTED", "CONFIGURED"].includes(providerStatus.status) ||
+      canShowDemoFallback);
 
   useEffect(() => {
     if (retrySeconds <= 0) return;
@@ -195,13 +205,7 @@ export function ApplicationAiAnalysis({
   }, [retrySeconds]);
 
   async function runAnalysis() {
-    if (
-      !providerStatus ||
-      !["CONNECTED", "CONFIGURED"].includes(providerStatus.status) ||
-      checkingProvider ||
-      loading ||
-      retrySeconds > 0
-    ) {
+    if (!canRunAnalysis || checkingProvider || loading || retrySeconds > 0) {
       return;
     }
     const requestId = ++analysisRequestId.current;
@@ -254,11 +258,7 @@ export function ApplicationAiAnalysis({
           type="button"
           onClick={() => void runAnalysis()}
           disabled={
-            loading ||
-            checkingProvider ||
-            !providerStatus ||
-            !["CONNECTED", "CONFIGURED"].includes(providerStatus.status) ||
-            retrySeconds > 0
+            loading || checkingProvider || !canRunAnalysis || retrySeconds > 0
           }
           className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-[#12243d] px-3 text-xs font-medium text-white transition hover:bg-[#1b3555] disabled:cursor-wait disabled:opacity-60"
         >
@@ -275,7 +275,9 @@ export function ApplicationAiAnalysis({
             ? copy.analyzing
             : retrySeconds > 0
               ? copy.retryIn(retrySeconds)
-              : copy.analyze}
+              : canShowDemoFallback
+                ? copy.demoFallbackAction
+                : copy.analyze}
         </button>
       </div>
       <div className="space-y-4 p-4 sm:p-5">
@@ -307,6 +309,14 @@ export function ApplicationAiAnalysis({
         )}
         {analysis && (
           <div className="space-y-4" aria-live="polite">
+            {analysis.demoFallback && (
+              <p
+                role="status"
+                className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950"
+              >
+                {copy.demoFallback}
+              </p>
+            )}
             <p className="text-xs leading-5 text-slate-800">
               <span className="font-semibold">{copy.summary}: </span>
               {analysis.summary}
@@ -315,32 +325,44 @@ export function ApplicationAiAnalysis({
               <FindingList
                 title={copy.missingInformation}
                 findings={analysis.missingInformation}
-                empty={copy.noFindings}
+                empty={
+                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
+                }
               />
               <FindingList
                 title={copy.potentialInconsistencies}
                 findings={analysis.potentialInconsistencies}
-                empty={copy.noFindings}
+                empty={
+                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
+                }
               />
               <FindingList
                 title={copy.documentObservations}
                 findings={analysis.documentObservations}
-                empty={copy.noFindings}
+                empty={
+                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
+                }
               />
               <FindingList
                 title={copy.fieldVerificationObservations}
                 findings={analysis.fieldVerificationObservations}
-                empty={copy.noFindings}
+                empty={
+                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
+                }
               />
               <FindingList
                 title={copy.suggestedQuestions}
                 findings={analysis.suggestedQuestions}
-                empty={copy.noFindings}
+                empty={
+                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
+                }
               />
               <FindingList
                 title={copy.officerAttentionPoints}
                 findings={analysis.officerAttentionPoints}
-                empty={copy.noFindings}
+                empty={
+                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
+                }
               />
             </div>
           </div>

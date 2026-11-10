@@ -598,14 +598,17 @@ export function getDemoApiResponse(path: string, init: RequestInit = {}) {
   if (endpoint === "final-review") return finalReviewApplication(applicationId);
   if (endpoint === "ai-analysis") {
     return {
-      summary: "AI advisory analysis is unavailable in offline demo mode.",
+      demoFallback: true,
+      summary:
+        "No AI analysis was generated. The AI service is unavailable, so this synthetic demonstration does not assess this application.",
       missingInformation: [],
       potentialInconsistencies: [],
       documentObservations: [],
       fieldVerificationObservations: [],
       suggestedQuestions: [],
       officerAttentionPoints: [],
-      disclaimer: "AI is advisory only. The officer retains final authority.",
+      disclaimer:
+        "Synthetic demonstration only. No AI service request succeeded. The authorized officer must independently review the application and make any final decision.",
     };
   }
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/field-verification-api";
 import { getFinalReviewQueue } from "@/lib/final-review-api";
 import { getDashboardHistory, getDashboardReport } from "@/lib/operations-api";
+import { analyzeApplication } from "@/lib/ai-analysis-api";
 
 describe("demo authentication", () => {
   beforeEach(() => {
@@ -193,5 +194,40 @@ describe("demo authentication", () => {
       status: "UNAVAILABLE",
       reason: "AI analysis is unavailable in offline demonstration mode.",
     });
+  });
+
+  it("returns an explicitly synthetic AI fallback only for service outages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: "Internal server error" }),
+      }),
+    );
+
+    await expect(
+      analyzeApplication("INC-2026-1208", "en"),
+    ).resolves.toMatchObject({
+      demoFallback: true,
+      summary: expect.stringContaining("No AI analysis was generated"),
+      disclaimer: expect.stringContaining("No AI service request succeeded"),
+      missingInformation: [],
+    });
+  });
+
+  it("does not replace authentication failures with a synthetic AI fallback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: "Unauthorized" }),
+      }),
+    );
+
+    await expect(
+      analyzeApplication("INC-2026-1208", "en"),
+    ).rejects.toMatchObject({ status: 401 });
   });
 });
