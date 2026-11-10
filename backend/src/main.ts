@@ -1,32 +1,8 @@
-import { Module } from 'node:module';
-import { delimiter, join } from 'node:path';
+import { NestFactory } from '@nestjs/core';
+import type { Request, Response } from 'express';
+import { AppModule } from './app.module.js';
 
-function configureVercelModuleResolution() {
-  if (process.env.VERCEL !== '1') return;
-
-  const backendNodeModules = join(__dirname, 'backend', 'node_modules');
-  const nodePaths = process.env.NODE_PATH?.split(delimiter) ?? [];
-
-  if (nodePaths.includes(backendNodeModules)) return;
-
-  process.env.NODE_PATH = [...nodePaths, backendNodeModules].join(delimiter);
-  const initializeModulePaths = Reflect.get(Module, '_initPaths');
-
-  if (typeof initializeModulePaths !== 'function') {
-    throw new Error('Node module path initialization is unavailable');
-  }
-
-  initializeModulePaths.call(Module);
-}
-
-async function bootstrap() {
-  configureVercelModuleResolution();
-
-  const [{ NestFactory }, { AppModule }] = await Promise.all([
-    import('@nestjs/core'),
-    import('./app.module.js'),
-  ]);
-
+async function createApplication() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3001',
@@ -41,9 +17,35 @@ async function bootstrap() {
     ],
   });
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
-  await app.listen(process.env.PORT ?? 3002);
+  return app;
 }
-bootstrap().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+
+const application = createApplication();
+const expressServer =
+  process.env.VERCEL === '1'
+    ? application.then(async (app) => {
+        await app.init();
+        return app.getHttpAdapter().getInstance();
+      })
+    : undefined;
+
+export default async function handler(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  if (!expressServer) {
+    throw new Error('The serverless handler requires the Vercel runtime');
+  }
+
+  const server = await expressServer;
+  server(request, response);
+}
+
+if (!expressServer) {
+  void application
+    .then((app) => app.listen(process.env.PORT ?? 3002))
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+}

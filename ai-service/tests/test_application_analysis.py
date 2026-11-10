@@ -2,7 +2,9 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import httpx
 import pytest
+from groq import APIStatusError
 from fastapi.testclient import TestClient
 
 from app import groq_provider
@@ -173,6 +175,71 @@ def test_official_sdk_receives_structured_json_configuration(
     assert "maxItems" not in json.dumps(schema)
     mock_client.chat.completions.create.assert_called_once()
     mock_client.close.assert_called_once()
+
+
+def test_schema_validation_failure_retries_with_json_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {
+        "error": {
+            "code": "json_validate_failed",
+            "message": "Generated content did not match the requested schema.",
+        }
+    }
+    error_response = httpx.Response(
+        400,
+        request=httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions"),
+        json=payload,
+    )
+    mock_client = Mock()
+    mock_client.chat.completions.create.side_effect = [
+        APIStatusError("Invalid generated JSON", response=error_response, body=payload),
+        SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=json.dumps(SAMPLE_ANALYSIS)),
+                )
+            ]
+        ),
+    ]
+    monkeypatch.setattr(groq_provider, "GROQ_API_KEY", "synthetic-test-key")
+    monkeypatch.setattr(groq_provider, "Groq", Mock(return_value=mock_client))
+
+    analysis = groq_provider.analyze_application(
+        ApplicationAnalysisRequest.model_validate(SAMPLE_REQUEST)
+    )
+
+    assert analysis.summary == SAMPLE_ANALYSIS["summary"]
+    assert mock_client.chat.completions.create.call_count == 2
+    assert mock_client.chat.completions.create.call_args_list[1].kwargs[
+        "response_format"
+    ] == {"type": "json_object"}
+    mock_client.close.assert_called_once()
+
+
+def test_json_mode_fallback_still_rejects_invalid_analysis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {"error": {"code": "json_validate_failed"}}
+    error_response = httpx.Response(
+        400,
+        request=httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions"),
+        json=payload,
+    )
+    mock_client = Mock()
+    mock_client.chat.completions.create.side_effect = [
+        APIStatusError("Invalid generated JSON", response=error_response, body=payload),
+        SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="{}"))]
+        ),
+    ]
+    monkeypatch.setattr(groq_provider, "GROQ_API_KEY", "synthetic-test-key")
+    monkeypatch.setattr(groq_provider, "Groq", Mock(return_value=mock_client))
+
+    with pytest.raises(ProviderError, match="INVALID_MODEL_RESPONSE"):
+        groq_provider.analyze_application(
+            ApplicationAnalysisRequest.model_validate(SAMPLE_REQUEST)
+        )
 
 
 def test_groq_client_uses_40_second_timeout_and_disables_retries(

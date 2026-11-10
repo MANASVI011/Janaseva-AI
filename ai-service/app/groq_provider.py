@@ -295,7 +295,37 @@ def _generate(contents: str, *, structured: bool) -> str:
         request["response_format"] = _response_schema()
     started = time.monotonic()
     try:
-        response = client.chat.completions.create(**request)
+        try:
+            response = client.chat.completions.create(**request)
+        except APIStatusError as cause:
+            provider_error = _provider_error(cause, contents)
+            if not (
+                structured
+                and provider_error.upstream_code == "json_validate_failed"
+            ):
+                if provider_error.upstream_status is not None:
+                    logger.warning(
+                        "ai_stage=groq_error upstream_status=%s upstream_code=%s upstream_message=%s",
+                        provider_error.upstream_status,
+                        provider_error.upstream_code or "not-provided",
+                        provider_error.upstream_message or "not-provided",
+                    )
+                    if provider_error.upstream_failed_generation:
+                        logger.warning(
+                            "ai_stage=groq_generation_validation failed_generation=%s",
+                            provider_error.upstream_failed_generation,
+                        )
+                raise provider_error from None
+
+            logger.warning(
+                "ai_stage=groq_schema_fallback upstream_status=%s upstream_code=%s",
+                provider_error.upstream_status or "not-provided",
+                provider_error.upstream_code,
+            )
+            request["response_format"] = {"type": "json_object"}
+            response = client.chat.completions.create(**request)
+    except ProviderError:
+        raise
     except APIStatusError as cause:
         provider_error = _provider_error(cause, contents)
         if provider_error.upstream_status is not None:
