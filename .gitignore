@@ -1,0 +1,29 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Node.js
+node_modules/
+**/node_modules/
+frontend/.next/
+frontend/out/
+backend/dist/
+backend/coverage/
+backend/.private-documents/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+*.egg-info/
+
+# Prisma
+backend/src/generated/prisma/
+
+# Editors and operating systems
+.DS_Store
+.vscode/

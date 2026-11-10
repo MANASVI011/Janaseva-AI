@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OfficerRole {
+  CASEWORKER
+  VA_RI
+  AUTHORIZED_OFFICER
+  ADMIN
+}
+
+enum DocumentCategory {
+  IDENTITY_PROOF
+  RATION_CARD
+  INCOME_DECLARATION
+  RESIDENCE_PROOF
+  SUPPORTING_INCOME
+  CASTE_CERTIFICATE
+  OTHER
+}
+
+enum DocumentStatus {
+  MISSING
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  REPLACEMENT_REQUESTED
+}
+
+enum ApplicationDocumentStatus {
+  DOCUMENT_REVIEW_PENDING
+  DOCUMENTS_VERIFIED
+  DOCUMENTS_AWAITING_REPLACEMENT
+  DOCUMENTS_INCOMPLETE
+  DOCUMENTS_REJECTED
+}
+
+enum ApplicationWorkflowStage {
+  DOCUMENT_VERIFICATION
+  FIELD_VERIFICATION
+  FINAL_REVIEW
+  COMPLETED
+}
+
+enum ApplicationDecisionType {
+  APPROVE
+  REJECT
+  RETURN_FOR_CORRECTION
+}
+
+enum ApplicationDecisionStatus {
+  APPROVED
+  REJECTED
+  RETURNED_FOR_CORRECTION
+}
+
+enum ApplicationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum FieldVisitStatus {
+  NOT_SCHEDULED
+  SCHEDULED
+  IN_PROGRESS
+  DRAFT
+  SUBMITTED
+  FOLLOW_UP
+}
+
+enum FieldVerificationOutcome {
+  INFORMATION_SUPPORTED
+  DISCREPANCY_IDENTIFIED
+  APPLICANT_UNAVAILABLE
+  FURTHER_VERIFICATION_REQUIRED
+}
+
+model User {
+  id                   String                      @id
+  name                 String
+  role                 OfficerRole
+  isActive             Boolean                     @default(true)
+  assignedApplications Application[]               @relation("AssignedOfficer")
+  uploadedVersions     DocumentVersion[]           @relation("UploadedBy")
+  verifiedVersions     DocumentVersion[]           @relation("VerifiedBy")
+  activities           DocumentActivity[]          @relation("ActivityOfficer")
+  missingRequests      MissingDocumentRequest[]    @relation("MissingRequestOfficer")
+  fieldAssignments     FieldVerification[]         @relation("FieldAssignedOfficer")
+  fieldAssignmentsMade FieldVerification[]         @relation("FieldAssignedBy")
+  fieldReports         FieldVerification[]         @relation("FieldReportOfficer")
+  fieldActivities      FieldVerificationActivity[]
+  decisions            ApplicationDecision[]
+
+  @@index([role, isActive])
+}
+
+model Application {
+  id                 String                      @id
+  applicantName      String
+  village            String
+  submissionDate     DateTime
+  serviceType        String                      @default("INCOME_CERTIFICATE")
+  status             ApplicationDocumentStatus   @default(DOCUMENT_REVIEW_PENDING)
+  workflowStage      ApplicationWorkflowStage    @default(DOCUMENT_VERIFICATION)
+  decisionStatus     ApplicationDecisionStatus?
+  hobli              String                      @default("")
+  taluk              String                      @default("")
+  district           String                      @default("")
+  address            String                      @default("")
+  annualFamilyIncome Int?
+  applicationPurpose String                      @default("")
+  priority           ApplicationPriority         @default(NORMAL)
+  assignedOfficerId  String?
+  assignedOfficer    User?                       @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id], onDelete: SetNull)
+  documents          ApplicationDocument[]
+  missingRequests    MissingDocumentRequest[]
+  activities         DocumentActivity[]
+  fieldVerification  FieldVerification?
+  fieldActivities    FieldVerificationActivity[]
+  decisions          ApplicationDecision[]
+
+  @@index([applicantName])
+  @@index([village])
+  @@index([submissionDate])
+  @@index([status, workflowStage])
+  @@index([assignedOfficerId])
+  @@index([workflowStage, priority])
+}
+
+model ApplicationDecision {
+  id                    String                     @id @default(uuid())
+  applicationId         String
+  officerId             String
+  decision              ApplicationDecisionType
+  resultingStatus       ApplicationDecisionStatus
+  previousStatus        ApplicationDecisionStatus?
+  previousWorkflowStage ApplicationWorkflowStage
+  newWorkflowStage      ApplicationWorkflowStage
+  remarks               String?
+  createdAt             DateTime                   @default(now())
+  application           Application                @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  officer               User                       @relation(fields: [officerId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@index([officerId, createdAt])
+}
+
+model DocumentRequirement {
+  id          String           @id @default(uuid())
+  serviceType String
+  category    DocumentCategory
+  label       String           @default("")
+  required    Boolean          @default(true)
+
+  @@unique([serviceType, category, label])
+  @@index([serviceType, required])
+}
+
+model ApplicationDocument {
+  id              String                   @id @default(uuid())
+  applicationId   String
+  category        DocumentCategory
+  label           String                   @default("")
+  required        Boolean                  @default(true)
+  status          DocumentStatus           @default(PENDING_VERIFICATION)
+  requiredReason  String?
+  requestedAt     DateTime?
+  application     Application              @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  versions        DocumentVersion[]
+  activities      DocumentActivity[]
+  missingRequests MissingDocumentRequest[]
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@unique([applicationId, category, label])
+  @@index([applicationId, status])
+  @@index([category, status])
+  @@index([required, status])
+}
+
+model DocumentVersion {
+  id                String              @id @default(uuid())
+  documentId        String
+  version           Int
+  originalFilename  String
+  storageKey        String              @unique
+  mimeType          String
+  sizeBytes         Int
+  sha256            String
+  status            DocumentStatus      @default(PENDING_VERIFICATION)
+  uploadedById      String
+  uploadedAt        DateTime            @default(now())
+  verifiedById      String?
+  verifiedAt        DateTime?
+  remarks           String?
+  rejectionReason   String?
+  replacementReason String?
+  document          ApplicationDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy        User                @relation("UploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  verifiedBy        User?               @relation("VerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, version])
+  @@index([documentId, uploadedAt])
+  @@index([status, uploadedAt])
+}
+
+model MissingDocumentRequest {
+  id            String               @id @default(uuid())
+  applicationId String
+  documentId    String?
+  category      DocumentCategory
+  reason        String
+  requestedById String
+  requestedAt   DateTime             @default(now())
+  receivedAt    DateTime?
+  application   Application          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  document      ApplicationDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  requestedBy   User                 @relation("MissingRequestOfficer", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, requestedAt])
+  @@index([category, receivedAt])
+}
+
+model DocumentActivity {
+  id             String               @id @default(uuid())
+  applicationId  String
+  documentId     String?
+  action         String
+  previousStatus DocumentStatus?
+  newStatus      DocumentStatus?
+  officerId      String
+  timestamp      DateTime             @default(now())
+  remarks        String?
+  application    Application          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  document       ApplicationDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  officer        User                 @relation("ActivityOfficer", fields: [officerId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, timestamp])
+  @@index([documentId, timestamp])
+  @@index([officerId, timestamp])
+}
+
+model FieldVerification {
+  id                String                      @id @default(uuid())
+  applicationId     String                      @unique
+  assignedOfficerId String?
+  assignedById      String?
+  scheduledAt       DateTime?
+  visitVillage      String?
+  visitAddress      String?
+  instructions      String?
+  internalNotes     String?
+  status            FieldVisitStatus            @default(NOT_SCHEDULED)
+  checklist         Json?
+  observations      String?
+  outcome           FieldVerificationOutcome?
+  reportRemarks     String?
+  followUpRequested Boolean                     @default(false)
+  submittedAt       DateTime?
+  submittedById     String?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  application       Application                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  assignedOfficer   User?                       @relation("FieldAssignedOfficer", fields: [assignedOfficerId], references: [id], onDelete: SetNull)
+  assignedBy        User?                       @relation("FieldAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  submittedBy       User?                       @relation("FieldReportOfficer", fields: [submittedById], references: [id], onDelete: SetNull)
+  activities        FieldVerificationActivity[]
+
+  @@index([status, scheduledAt])
+  @@index([assignedOfficerId, scheduledAt])
+}
+
+model FieldVerificationActivity {
+  id                  String            @id @default(uuid())
+  applicationId       String
+  fieldVerificationId String
+  officerId           String
+  action              String
+  details             Json?
+  timestamp           DateTime          @default(now())
+  application         Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fieldVerification   FieldVerification @relation(fields: [fieldVerificationId], references: [id], onDelete: Cascade)
+  officer             User              @relation(fields: [officerId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, timestamp])
+  @@index([fieldVerificationId, timestamp])
+  @@index([officerId, timestamp])
+}
