@@ -171,9 +171,6 @@ export class DocumentApiError extends Error {
   }
 }
 
-const apiBase =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ??
-  "http://localhost:3002";
 const requestTimeoutMs = 15_000;
 const uploadTimeoutMs = 60_000;
 
@@ -211,7 +208,7 @@ async function request<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    response = await fetch(`${apiBase}/api${path}`, {
+    response = await fetch(`/api${path}`, {
       ...init,
       headers,
       signal: controller.signal,
@@ -266,10 +263,7 @@ async function request<T>(
     if (controller.signal.aborted) {
       throw new DocumentApiError("timeout", 408);
     }
-    throw new DocumentApiError(
-      `Could not reach the document API at ${apiBase}.`,
-      0,
-    );
+    throw new DocumentApiError("Could not reach the document API.", 0);
   } finally {
     clearTimeout(timeout);
   }
@@ -398,7 +392,7 @@ export function uploadApplicationDocument(
     const xhr = new XMLHttpRequest();
     xhr.open(
       "POST",
-      `${apiBase}/api/applications/${encodeURIComponent(applicationId)}/documents`,
+      `/api/applications/${encodeURIComponent(applicationId)}/documents`,
     );
     let headers: Headers;
     try {
@@ -440,12 +434,7 @@ export function uploadApplicationDocument(
       }
     });
     xhr.addEventListener("error", () =>
-      reject(
-        new DocumentApiError(
-          `Could not reach the document API at ${apiBase}.`,
-          0,
-        ),
-      ),
+      reject(new DocumentApiError("Could not reach the document API.", 0)),
     );
     xhr.addEventListener("timeout", () =>
       reject(new DocumentApiError("timeout", 408)),
@@ -539,7 +528,7 @@ async function requestBlob(token: string, path: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), uploadTimeoutMs);
   try {
-    response = await fetch(`${apiBase}/api${path}`, {
+    response = await fetch(`/api${path}`, {
       headers,
       signal: controller.signal,
     });
@@ -566,10 +555,7 @@ async function requestBlob(token: string, path: string) {
     if (controller.signal.aborted) {
       throw new DocumentApiError("timeout", 408);
     }
-    throw new DocumentApiError(
-      `Could not reach the document API at ${apiBase}.`,
-      0,
-    );
+    throw new DocumentApiError("Could not reach the document API.", 0);
   } finally {
     clearTimeout(timeout);
   }

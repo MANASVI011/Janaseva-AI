@@ -153,13 +153,13 @@ templates use placeholders. The root `.gitignore` ignores `.env` files.
 | `DATABASE_URL`                                      | Prisma/NestJS      | PostgreSQL connection. Encode reserved URL characters in passwords.                                     |
 | `PORT`                                              | NestJS             | HTTP port; defaults to `3002` in local instructions.                                                    |
 | `FRONTEND_ORIGIN`                                   | NestJS             | Allowed browser CORS origin; local value is `http://localhost:3001`.                                    |
-| `AI_SERVICE_URL`                                    | NestJS             | FastAPI base URL; code defaults to `http://127.0.0.1:8000`. Not currently listed in `.env.example`.     |
+| `AI_SERVICE_URL`                                    | NestJS             | FastAPI base URL; locally `http://127.0.0.1:8000`, injected by the Vercel service binding when deployed. |
 | `AI_SERVICE_TOKEN`                                  | NestJS and FastAPI | Shared internal service credential. Generate a separate random value; do not reuse the Groq key.        |
 | `DOCUMENT_VERIFICATION_JWT_SECRET`                  | NestJS             | At least 32 bytes, used to validate officer HS256 tokens when demo authentication is disabled.          |
 | `DOCUMENT_VERIFICATION_JWT_ISSUER`                  | NestJS             | Expected officer JWT issuer; local template uses `janaseva-ai-auth`.                                    |
 | `DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED`           | NestJS             | Local demo-header auth control. Must be disabled in production.                                         |
 | `DOCUMENT_STORAGE_PATH`                             | NestJS             | Private local document directory; defaults to `.private-documents` under the backend working directory. |
-| `NEXT_PUBLIC_API_BASE_URL`                          | Next.js            | Browser-visible NestJS origin; local default is `http://localhost:3002`.                                |
+| `NEXT_PUBLIC_API_BASE_URL`                          | Next.js            | Optional local Next.js proxy destination; browser requests use same-origin `/api` paths.                |
 | `NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH`       | Next.js            | Enables the development demo header; set to `false` when using a token.                                 |
 | `AI_PROVIDER`                                       | FastAPI            | Active provider; currently `groq`.                                                                      |
 | `GROQ_API_KEY`                                      | FastAPI            | Secret Groq API key. Keep server-side only.                                                             |
@@ -429,7 +429,7 @@ testing uses an existing synthetic application.
 - Local filesystem storage only; no durable object storage, malware scanning,
   retention policy, or cleanup for orphaned files.
 - No PostgreSQL backup/restore runbook, production monitoring/alerting,
-  deployment manifests, service Dockerfiles, or CI/CD pipeline.
+  CI/CD pipeline, or verified Vercel deployment.
 - Reports do not calculate overdue applications; some dimensions require data
   not currently present in the schema.
 - No notification delivery is implemented.
@@ -443,13 +443,50 @@ testing uses an existing synthetic application.
   a public commit. The current QA report contains at least one claim not
   supported by current source code.
 
-## Deployment status
+## Vercel multi-service deployment configuration
 
-**Not production-ready and not deployed.** There are no Dockerfiles or
-deployment manifests for Next.js, NestJS, or FastAPI; Compose starts only
-PostgreSQL. Before deployment:
+The root `vercel.json` configures three independently built Vercel services:
+`frontend` (Next.js), `backend` (NestJS), and `ai-service` (FastAPI). Public
+requests under `/api/` are routed to NestJS; all other paths are routed to
+Next.js. FastAPI has no public rewrite and is internal. NestJS calls FastAPI
+through the `AI_SERVICE_URL` service binding. The frontend calls the public
+same-origin `/api` routes, so it does not need a binding or a public backend
+hostname. The backend build runs Prisma client generation before NestJS
+compilation. The AI and backend function entrypoints are configured with
+maximum durations of 50 and 60 seconds respectively, to accommodate the
+existing FastAPI and NestJS timeout budgets. Confirm the selected Vercel plan
+supports these limits (Hobby's maximum is 60 seconds).
 
-1. Choose hosting and private service networking; configure HTTPS, CORS, and
+To try the multi-service project locally, use a Vercel CLI version that
+supports Services (48.4.0 or later), link the repository to a Vercel project,
+configure the environment variables below, and run:
+
+```bash
+vercel dev
+```
+
+For Vercel, configure `DATABASE_URL`, `AI_SERVICE_TOKEN`,
+`DOCUMENT_VERIFICATION_JWT_SECRET`, `DOCUMENT_VERIFICATION_JWT_ISSUER`,
+`DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED=false`, and the AI service's
+`GROQ_API_KEY` (plus optional `GROQ_MODEL` and `GROQ_API_BASE_URL`) in the
+appropriate service environments. `AI_SERVICE_URL` is injected by the
+backend-to-AI service binding; do not set it manually. The database must be a
+reachable managed PostgreSQL instance; Docker Compose is for local PostgreSQL
+only. Keep demo seed and fixture data out of production. Frontend API calls
+use same-origin `/api` paths, and no secret belongs in a `NEXT_PUBLIC_*`
+variable.
+
+**The repository is configured for Vercel, but deployment has not been
+performed or validated on Vercel. It is not production-ready.** In particular,
+document bytes currently use local filesystem storage, which is not durable
+across Vercel Function instances. The application allows files up to 10 MB;
+confirm Vercel's request-body limits for the selected runtime/plan before
+enabling uploads. Do not enable production document uploads until storage is
+moved to private durable object storage and the upload path is designed for
+the platform limits. Also confirm the selected Vercel plan's function-duration
+limits support the configured AI request timeouts. Before production:
+
+1. Configure HTTPS, CORS, a managed database network connection, and the
    correct frontend/API origins.
 2. Integrate a trusted officer identity provider/token issuer, disable demo
    auth, and define officer/record-level authorization.
@@ -460,15 +497,16 @@ PostgreSQL. Before deployment:
    malware-scanning controls.
 5. Add monitoring, service readiness probes, rate-limit visibility, backup
    and restore procedures, rollback steps, and production integration tests.
-6. Build each service with reproducible dependencies and exercise the full
-   workflow in a non-production environment.
+6. Exercise the service bindings, public rewrites, database migrations, file
+   handling, and full workflow in a non-production Vercel deployment.
 
 The production service environment needs the relevant settings listed in
 [Environment configuration](#environment-configuration), including
-`DATABASE_URL`, `FRONTEND_ORIGIN`, `AI_SERVICE_URL`, `AI_SERVICE_TOKEN`,
-officer JWT configuration, private document storage, frontend API URL, and
-Groq settings if AI is enabled. Keep all secret values in a deployment secret
-manager, not in Git or frontend variables.
+`DATABASE_URL`, `AI_SERVICE_TOKEN`, officer JWT configuration, and Groq
+settings if AI is enabled. Set `FRONTEND_ORIGIN` to the deployment origin if
+cross-origin requests are used. `AI_SERVICE_URL` is provided by the binding.
+Keep all secret values in a deployment secret manager, not in Git or frontend
+variables.
 
 ## Future improvements
 

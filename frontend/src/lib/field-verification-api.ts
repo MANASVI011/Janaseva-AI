@@ -161,10 +161,6 @@ export class FieldVerificationApiError extends Error {
   }
 }
 
-const apiBase =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ??
-  "http://localhost:3002";
-
 async function request<T>(
   path: string,
   options: {
@@ -196,7 +192,7 @@ async function request<T>(
   const timeout = window.setTimeout(() => controller.abort(), 15_000);
   let response: Response;
   try {
-    response = await fetch(`${apiBase}/api${path}`, {
+    response = await fetch(`/api${path}`, {
       method: options.method ?? "GET",
       headers,
       body:
@@ -211,7 +207,7 @@ async function request<T>(
       );
     }
     throw new FieldVerificationApiError(
-      `Could not reach the field verification API at ${apiBase}.`,
+      "Could not reach the field verification API.",
       0,
     );
   } finally {
