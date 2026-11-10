@@ -51,10 +51,15 @@ function context(
   };
 }
 
-function createGuard(nodeEnv = 'production', demoEnabled = 'true') {
+function createGuard(
+  nodeEnv = 'production',
+  demoEnabled = 'true',
+  demoMode = 'false',
+) {
   const config = new ConfigService({
     NODE_ENV: nodeEnv,
     DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED: demoEnabled,
+    DEMO_MODE: demoMode,
   });
   const prisma = {
     user: {
@@ -133,6 +138,30 @@ describe('OfficerJwtGuard', () => {
       guard.canActivate(requestContext.execution),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('allows the configured production demo identity only when DEMO_MODE is explicit', async () => {
+    const requestContext = context({ demoAuth: 'enabled' });
+    const { guard, prisma } = createGuard('production', 'false', 'true');
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'demo-authorized-officer',
+      name: 'Synthetic Demonstration Officer',
+      role: OfficerRole.AUTHORIZED_OFFICER,
+      isActive: true,
+    });
+
+    await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
+      true,
+    );
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: 'demo-authorized-officer' },
+      select: { id: true, name: true, role: true, isActive: true },
+    });
+    expect(requestContext.request).toHaveProperty('officer', {
+      id: 'demo-authorized-officer',
+      name: 'Synthetic Demonstration Officer',
+      role: OfficerRole.AUTHORIZED_OFFICER,
+    });
   });
 
   it('allows the configured local caseworker demo only outside production', async () => {

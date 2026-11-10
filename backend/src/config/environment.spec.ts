@@ -29,6 +29,44 @@ describe('backend environment selection', () => {
     ).toBe(injectedUrl);
   });
 
+  it('uses an isolated database for production demo mode', () => {
+    const demoUrl = 'postgresql://demo.example/janaseva_demo';
+    expect(
+      getRuntimeDatabaseUrl({
+        DATABASE_URL: 'postgresql://production.example/neondb',
+        DEMO_DATABASE_URL: demoUrl,
+        DEMO_MODE: 'true',
+        NODE_ENV: 'production',
+      }),
+    ).toBe(demoUrl);
+  });
+
+  it('rejects demo mode without a separate demo database URL', () => {
+    expect(() =>
+      getRuntimeDatabaseUrl({
+        DATABASE_URL: 'postgresql://production.example/neondb',
+        DEMO_MODE: 'true',
+        NODE_ENV: 'production',
+      }),
+    ).toThrow(
+      'DEMO_MODE requires DATABASE_URL and a separate DEMO_DATABASE_URL',
+    );
+  });
+
+  it('rejects demo mode pointed at the production database, including pooled URLs', () => {
+    expect(() =>
+      getRuntimeDatabaseUrl({
+        DATABASE_URL:
+          'postgresql://owner@ep-main-pooler.region.neon.tech/neondb',
+        DEMO_DATABASE_URL: 'postgresql://demo@ep-main.region.neon.tech/neondb',
+        DEMO_MODE: 'true',
+        NODE_ENV: 'production',
+      }),
+    ).toThrow(
+      'DEMO_DATABASE_URL must target a database separate from DATABASE_URL',
+    );
+  });
+
   it('prefers the unpooled URL for Prisma migration commands', () => {
     const unpooledUrl = 'postgresql://direct.example/neondb';
     expect(

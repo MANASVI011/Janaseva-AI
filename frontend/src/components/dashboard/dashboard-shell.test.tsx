@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { messages } from "@/lib/dashboard-i18n";
 import { DashboardShell } from "./dashboard-shell";
 
@@ -21,6 +21,7 @@ vi.mock("@/components/dashboard/dashboard-provider", () => ({
     authLoading: route.authLoading,
     officer: route.officer,
     t: messages.kn,
+    language: "kn",
     search: "",
     setSearch: vi.fn(),
     logout: vi.fn(),
@@ -29,10 +30,15 @@ vi.mock("@/components/dashboard/dashboard-provider", () => ({
 
 describe("dashboard route protection", () => {
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "true");
     route.pathname = "/reports";
     route.authLoading = false;
     route.officer = null;
     route.replace.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("does not render a protected page for an unauthenticated officer", async () => {
@@ -57,5 +63,33 @@ describe("dashboard route protection", () => {
       </DashboardShell>,
     );
     expect(screen.getByText("Protected reports")).toBeInTheDocument();
+  });
+
+  it.each([
+    "/",
+    "/applications",
+    "/document-verification",
+    "/field-verification",
+    "/final-review",
+    "/reports",
+    "/history",
+    "/settings",
+  ])("allows direct demo access to %s", (pathname) => {
+    route.pathname = pathname;
+    route.officer = {
+      id: "demo-authorized-officer",
+      name: "Demonstration Reviewer",
+      role: "AUTHORIZED_OFFICER",
+    };
+
+    render(
+      <DashboardShell initialLanguage="kn" hasLanguageCookie>
+        <p>Protected demonstration page</p>
+      </DashboardShell>,
+    );
+    expect(
+      screen.getByText("Protected demonstration page"),
+    ).toBeInTheDocument();
+    expect(route.replace).not.toHaveBeenCalled();
   });
 });

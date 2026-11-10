@@ -59,11 +59,13 @@ export class OfficerJwtGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token =
-      getCookieValue(request, officerSessionCookie) ??
-      (request.headers.authorization?.startsWith('Bearer ')
-        ? request.headers.authorization.slice(7)
-        : undefined);
+    const productionDemoMode = this.config.get<string>('DEMO_MODE') === 'true';
+    const token = productionDemoMode
+      ? undefined
+      : (getCookieValue(request, officerSessionCookie) ??
+        (request.headers.authorization?.startsWith('Bearer ')
+          ? request.headers.authorization.slice(7)
+          : undefined));
     if (token) {
       let officer: Awaited<ReturnType<AuthService['verifySession']>>;
       try {
@@ -82,10 +84,11 @@ export class OfficerJwtGuard implements CanActivate {
     }
 
     const demoEnabled =
-      (this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) !==
+      productionDemoMode ||
+      ((this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) !==
         'production' &&
-      this.config.get<string>('DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED') !==
-        'false';
+        this.config.get<string>('DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED') !==
+          'false');
     const selectedDemoFieldOfficer = request.headers[demoFieldOfficerHeader];
     if (
       demoEnabled &&
@@ -131,11 +134,17 @@ export class OfficerJwtGuard implements CanActivate {
       return true;
     }
     if (demoEnabled && request.headers[demoAuthHeader] === 'enabled') {
+      const defaultDemoOfficer = productionDemoMode
+        ? {
+            id: 'demo-authorized-officer',
+            role: OfficerRole.AUTHORIZED_OFFICER,
+          }
+        : { id: demoOfficerId, role: OfficerRole.CASEWORKER };
       const officer = await this.prisma.user.findUnique({
-        where: { id: demoOfficerId },
+        where: { id: defaultDemoOfficer.id },
         select: { id: true, name: true, role: true, isActive: true },
       });
-      if (!officer?.isActive || officer.role !== OfficerRole.CASEWORKER) {
+      if (!officer?.isActive || officer.role !== defaultDemoOfficer.role) {
         throw new UnauthorizedException(
           'The configured demo officer is not authorized.',
         );

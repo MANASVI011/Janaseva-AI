@@ -4,32 +4,44 @@ import { useState, type FormEvent } from "react";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { LanguageSwitcher } from "@/components/dashboard/language-switcher";
 import { useDashboard } from "@/components/dashboard/dashboard-provider";
+import { isDemoModeEnabled } from "@/lib/document-verification-api";
 
 const copy = {
   kn: {
     eyebrow: "ಅಧಿಕಾರಿ ಸುರಕ್ಷಿತ ಪ್ರವೇಶ",
+    demoEyebrow: "ಪ್ರದರ್ಶನ ಪ್ರವೇಶ",
     title: "ಜನಸೇವಾ AI ಗೆ ಸ್ವಾಗತ",
     description: "ನಿಮ್ಮ ಅಧಿಕೃತ ಅಧಿಕಾರಿಯ ಖಾತೆಯ ಮೂಲಕ ಮುಂದುವರಿಯಿರಿ.",
+    demoDescription:
+      "ಪ್ರದರ್ಶನ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ತೆರೆಯಲು ಯಾವುದೇ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ.",
     username: "ಬಳಕೆದಾರ ಹೆಸರು",
     password: "ಪಾಸ್‌ವರ್ಡ್",
     submit: "ಸುರಕ್ಷಿತವಾಗಿ ಪ್ರವೇಶಿಸಿ",
+    demoSubmit: "ಪ್ರದರ್ಶನಕ್ಕೆ ಮುಂದುವರಿಯಿರಿ",
     submitting: "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…",
     required: "ಬಳಕೆದಾರ ಹೆಸರು ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಿ.",
     invalid: "ಲಾಗಿನ್ ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ವಿವರಗಳನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
     security: "ನಿಮ್ಮ ಅಧಿವೇಶನ ಸುರಕ್ಷಿತವಾಗಿ ನಿರ್ವಹಿಸಲಾಗುತ್ತದೆ.",
+    demoSecurity:
+      "ಪ್ರದರ್ಶನ ಪ್ರವೇಶ ಮಾತ್ರ: ಯಾವುದೇ ಹೆಸರು ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ಸ್ವೀಕರಿಸಲಾಗುತ್ತದೆ; ಇದು ಸುರಕ್ಷಿತ ದೃಢೀಕರಣವಲ್ಲ.",
     notice: "ಇದು ಪ್ರದರ್ಶನ ಅಪ್ಲಿಕೇಶನ್; ಕರ್ನಾಟಕ ಸರ್ಕಾರದ ಅಧಿಕೃತ ಪೋರ್ಟಲ್ ಅಲ್ಲ.",
   },
   en: {
     eyebrow: "SECURE OFFICER ACCESS",
+    demoEyebrow: "DEMONSTRATION ACCESS",
     title: "Welcome to Janaseva AI",
     description: "Continue with your authorized officer account.",
+    demoDescription: "Enter any details to open the demonstration dashboard.",
     username: "Username",
     password: "Password",
     submit: "Sign in securely",
+    demoSubmit: "Continue to demo",
     submitting: "Signing in…",
     required: "Enter your username and password.",
     invalid: "Sign-in failed. Check your details and try again.",
     security: "Your session is managed securely.",
+    demoSecurity:
+      "Demo access only: any username and password work; this is not secure authentication.",
     notice:
       "Demonstration application only; not an official Karnataka government portal.",
   },
@@ -38,6 +50,7 @@ const copy = {
 export function LoginPage() {
   const { language, login } = useDashboard();
   const words = copy[language];
+  const demoMode = isDemoModeEnabled();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -83,13 +96,13 @@ export function LoginPage() {
         </div>
 
         <p className="text-[10px] font-semibold tracking-[0.17em] text-teal-800">
-          {words.eyebrow}
+          {demoMode ? words.demoEyebrow : words.eyebrow}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
           {words.title}
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          {words.description}
+          {demoMode ? words.demoDescription : words.description}
         </p>
 
         <form className="mt-7 space-y-4" onSubmit={submit}>
@@ -102,7 +115,6 @@ export function LoginPage() {
               autoCapitalize="none"
               spellCheck={false}
               required
-              maxLength={128}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-700 focus:ring-4 focus:ring-teal-700/10"
@@ -116,7 +128,6 @@ export function LoginPage() {
               type="password"
               autoComplete="current-password"
               required
-              maxLength={256}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-700 focus:ring-4 focus:ring-teal-700/10"
@@ -136,13 +147,17 @@ export function LoginPage() {
             className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#12243d] px-4 text-sm font-medium text-white transition hover:bg-[#1b3555] disabled:cursor-wait disabled:opacity-65"
           >
             <LockKeyhole size={15} aria-hidden="true" />
-            {submitting ? words.submitting : words.submit}
+            {submitting
+              ? words.submitting
+              : demoMode
+                ? words.demoSubmit
+                : words.submit}
           </button>
         </form>
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
           <ShieldCheck size={14} className="text-teal-700" aria-hidden="true" />
-          {words.security}
+          {demoMode ? words.demoSecurity : words.security}
         </p>
         <p className="mt-6 border-t border-slate-100 pt-4 text-center text-[10px] leading-5 text-slate-500">
           {words.notice}

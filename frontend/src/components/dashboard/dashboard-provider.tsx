@@ -21,6 +21,7 @@ import {
   logoutOfficer,
   type AuthenticatedOfficer,
 } from "@/lib/auth-api";
+import { isDemoModeEnabled } from "@/lib/document-verification-api";
 
 type DashboardContextValue = {
   language: Language;
@@ -54,6 +55,9 @@ export function DashboardProvider({
   const [search, setSearch] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [officer, setOfficer] = useState<AuthenticatedOfficer | null>(null);
+  const [demoSessionExpiresAt, setDemoSessionExpiresAt] = useState<
+    string | null
+  >(null);
   const [cases, setCases] = useState<Record<string, ApplicationCase>>(() =>
     Object.fromEntries(
       applications.map((application) => [
@@ -76,7 +80,12 @@ export function DashboardProvider({
     let active = true;
     getAuthSession()
       .then((session) => {
-        if (active) setOfficer(session.officer);
+        if (active) {
+          setOfficer(session.officer);
+          setDemoSessionExpiresAt(
+            isDemoModeEnabled() ? session.expiresAt : null,
+          );
+        }
       })
       .catch(() => {
         if (active) setOfficer(null);
@@ -88,6 +97,21 @@ export function DashboardProvider({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isDemoModeEnabled() || !demoSessionExpiresAt) return;
+
+    const expiresIn = Date.parse(demoSessionExpiresAt) - Date.now();
+    const timer = window.setTimeout(
+      () => {
+        void logoutOfficer();
+        setOfficer(null);
+        setDemoSessionExpiresAt(null);
+      },
+      Math.max(0, expiresIn),
+    );
+    return () => window.clearTimeout(timer);
+  }, [demoSessionExpiresAt]);
 
   useEffect(() => {
     if (hasLanguageCookie) return;
@@ -127,10 +151,12 @@ export function DashboardProvider({
   const login = useCallback(async (username: string, password: string) => {
     const session = await loginOfficer(username, password);
     setOfficer(session.officer);
+    setDemoSessionExpiresAt(isDemoModeEnabled() ? session.expiresAt : null);
   }, []);
   const logout = useCallback(async () => {
     await logoutOfficer();
     setOfficer(null);
+    setDemoSessionExpiresAt(null);
   }, []);
 
   const value = useMemo(

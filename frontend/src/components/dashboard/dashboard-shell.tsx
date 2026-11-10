@@ -12,6 +12,7 @@ import { LoginPage } from "@/components/dashboard/login-page";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import type { Language } from "@/lib/dashboard-i18n";
+import { isDemoModeEnabled } from "@/lib/document-verification-api";
 
 export function DashboardShell({
   children,
@@ -35,7 +36,7 @@ export function DashboardShell({
 function DashboardFrame({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { authLoading, officer } = useDashboard();
+  const { authLoading, officer, language, t } = useDashboard();
   const pathname = usePathname();
   const router = useRouter();
   const isLoginPage = pathname === "/login";
@@ -72,6 +73,15 @@ function DashboardFrame({ children }: { children: ReactNode }) {
       />
       <div className="min-w-0 flex-1">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
+        {isDemoModeEnabled() && (
+          <div
+            className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-900 sm:px-6 lg:px-8"
+            role="status"
+            lang={language}
+          >
+            {t.demoModeNotice}
+          </div>
+        )}
         <main className="mx-auto w-full max-w-[1640px] px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
           {children}
         </main>

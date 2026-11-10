@@ -1,3 +1,5 @@
+import { getDemoApiResponse } from "@/lib/demo-api";
+
 export type DocumentStatus =
   | "MISSING"
   | "PENDING_VERIFICATION"
@@ -184,9 +186,14 @@ function getOfficerAuthHeaders(initial?: HeadersInit): Headers {
 
 export function isDocumentDemoAuthEnabled() {
   return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH !== "false"
+    isDemoModeEnabled() ||
+    (process.env.NODE_ENV !== "production" &&
+      process.env.NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH !== "false")
   );
+}
+
+export function isDemoModeEnabled() {
+  return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 }
 
 async function request<T>(
@@ -255,7 +262,16 @@ async function request<T>(
       throw new DocumentApiError("invalidResponse", 502);
     }
   } catch (cause) {
-    if (cause instanceof DocumentApiError) throw cause;
+    if (cause instanceof DocumentApiError) {
+      if (isDemoModeEnabled() && (cause.status === 0 || cause.status >= 500)) {
+        if (responseType === "blob") {
+          return new Blob(["Janaseva AI offline demonstration export."]) as T;
+        }
+        const demoResponse = getDemoApiResponse(path, init);
+        if (demoResponse !== null) return demoResponse as T;
+      }
+      throw cause;
+    }
     if (controller.signal.aborted) {
       throw new DocumentApiError("timeout", 408);
     }

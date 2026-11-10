@@ -1,4 +1,8 @@
-import { isDocumentDemoAuthEnabled } from "@/lib/document-verification-api";
+import { getDemoApiResponse } from "@/lib/demo-api";
+import {
+  isDemoModeEnabled,
+  isDocumentDemoAuthEnabled,
+} from "@/lib/document-verification-api";
 
 export type FieldVisitStatus =
   | "NOT_SCHEDULED"
@@ -193,6 +197,12 @@ async function request<T>(
       signal: controller.signal,
     });
   } catch {
+    if (isDemoModeEnabled()) {
+      const demoResponse = getDemoApiResponse(path, {
+        method: options.method,
+      });
+      if (demoResponse !== null) return demoResponse as T;
+    }
     if (controller.signal.aborted) {
       throw new FieldVerificationApiError(
         "The field verification service timed out. Please retry.",
@@ -223,6 +233,12 @@ async function request<T>(
       }
     } catch {
       // Keep the HTTP status when the server does not return JSON.
+    }
+    if (response.status >= 500 && isDemoModeEnabled()) {
+      const demoResponse = getDemoApiResponse(path, {
+        method: options.method,
+      });
+      if (demoResponse !== null) return demoResponse as T;
     }
     throw new FieldVerificationApiError(message, response.status);
   }

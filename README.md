@@ -158,9 +158,12 @@ templates use placeholders. The root `.gitignore` ignores `.env` files.
 | `AI_SERVICE_TOKEN`                                  | NestJS and FastAPI | Shared internal service credential. Generate a separate random value; do not reuse the Groq key.         |
 | `AUTH_JWT_SECRET`                                   | NestJS             | At least 32 random bytes; signs short-lived server-side officer sessions.                                |
 | `AUTH_JWT_ISSUER`                                   | NestJS             | JWT issuer; defaults to `janaseva-ai-auth`.                                                              |
+| `DEMO_MODE`                                         | NestJS             | Explicitly enables public demo-header access. Requires a separate `DEMO_DATABASE_URL`; never point demo mode at production data. |
+| `DEMO_DATABASE_URL`                                 | NestJS             | Pooled runtime URL for a separate, pre-migrated database containing synthetic demo data only.            |
 | `DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED`           | NestJS             | Local demo-header auth control. Must be disabled in production.                                          |
 | `DOCUMENT_STORAGE_PATH`                             | NestJS             | Private local document directory; defaults to `.private-documents` under the backend working directory.  |
 | `NEXT_PUBLIC_API_BASE_URL`                          | Next.js            | Optional local Next.js proxy destination; browser requests use same-origin `/api` paths.                 |
+| `NEXT_PUBLIC_DEMO_MODE`                             | Next.js            | Enables the clearly labeled, browser-persisted public demo session; pair only with backend `DEMO_MODE`. |
 | `NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH`       | Next.js            | Enables the development demo header; set to `false` when using a token.                                  |
 | `AI_PROVIDER`                                       | FastAPI            | Active provider; currently `groq`.                                                                       |
 | `GROQ_API_KEY`                                      | FastAPI            | Secret Groq API key. Keep server-side only.                                                              |
@@ -176,6 +179,16 @@ the root file may contain Neon production URLs. Create `ai-service/.env` from
 defaults, place only the two `NEXT_PUBLIC_*` settings in
 `frontend/.env.local`. Do not copy database credentials or private tokens into
 frontend configuration.
+
+Public demo mode is deliberately unauthenticated and is not suitable for real
+applicant or government records. To enable it on a separate demo deployment,
+set `NEXT_PUBLIC_DEMO_MODE=true` on the frontend and `DEMO_MODE=true` on the
+backend. The backend additionally requires `DEMO_DATABASE_URL`, and refuses to
+start if it points to the same host and database as `DATABASE_URL`. Use a
+separately provisioned, pre-migrated database containing synthetic data only.
+Keep `DATABASE_URL` pointed at the production database; runtime queries in
+demo mode use only `DEMO_DATABASE_URL`. This repository does not provision or
+seed the demo database automatically.
 
 PrismaService uses `DATABASE_URL` at runtime. For production migrations, set
 `DATABASE_URL_UNPOOLED` in the migration environment; `prisma migrate` uses

@@ -43,6 +43,8 @@ export const messages = {
       disclaimer:
         "ಇದು ಜನಸೇವಾ AI ಪ್ರದರ್ಶನ ಮಾತ್ರ; ಕರ್ನಾಟಕ ಸರ್ಕಾರದ ಅಧಿಕೃತ ಪೋರ್ಟಲ್ ಅಲ್ಲ.",
     },
+    demoModeNotice:
+      "ಡೆಮೋ ಮೋಡ್: ಇದು ನಿಜವಾದ ದೃಢೀಕರಣವಲ್ಲ. ಕೃತಕ ಪ್ರದರ್ಶನ ಡೇಟಾವನ್ನು ಮಾತ್ರ ಬಳಸಿ.",
     stats: {
       total: "ಒಟ್ಟು ಅರ್ಜಿಗಳು",
       pending: "ಬಾಕಿ ಇರುವ ಅರ್ಜಿಗಳು",
@@ -488,6 +490,8 @@ export const messages = {
       disclaimer:
         "Janaseva AI is a demonstration only, not an official Karnataka government portal.",
     },
+    demoModeNotice:
+      "Demo mode: authentication is not real. Use synthetic demonstration data only.",
     stats: {
       total: "Total applications",
       pending: "Pending applications",
