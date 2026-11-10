@@ -14,6 +14,8 @@
     "backend": {
       "root": "backend",
       "framework": "nestjs",
+      "installCommand": "npm ci --include=dev",
+      "buildCommand": "npm run build",
       "functions": {
         "src/main.ts": {
           "maxDuration": 60
