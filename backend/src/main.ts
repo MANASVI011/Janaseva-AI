@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { Module } from 'node:module';
+import { createRequire, Module } from 'node:module';
 import { delimiter, join } from 'node:path';
 import type { Request, Response } from 'express';
 
@@ -30,10 +30,10 @@ function configureVercelModuleResolution() {
 
 async function createApplication() {
   configureVercelModuleResolution();
-  const [{ NestFactory }, { AppModule }] = await Promise.all([
-    import('@nestjs/core'),
-    import('./app.module.js'),
-  ]);
+  const { NestFactory } = createRequire(__filename)(
+    '@nestjs/core',
+  ) as typeof import('@nestjs/core');
+  const { AppModule } = await import('./app.module.js');
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3001',
