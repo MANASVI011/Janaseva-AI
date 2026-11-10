@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginPage } from "./login-page";
 
 const auth = vi.hoisted(() => ({
@@ -19,9 +19,14 @@ vi.mock("@/components/dashboard/dashboard-provider", () => ({
 
 describe("officer login page", () => {
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "false");
     auth.language = "kn";
     auth.login.mockReset();
     auth.setLanguage.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("renders Kannada by default and offers an English toggle", () => {

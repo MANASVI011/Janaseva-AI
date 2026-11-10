@@ -234,7 +234,12 @@ async function request<T>(
     } catch {
       // Keep the HTTP status when the server does not return JSON.
     }
-    if (response.status >= 500 && isDemoModeEnabled()) {
+    const readOnlyRequest = (options.method ?? "GET").toUpperCase() === "GET";
+    if (
+      readOnlyRequest &&
+      isDemoModeEnabled() &&
+      (response.status === 401 || response.status >= 500)
+    ) {
       const demoResponse = getDemoApiResponse(path, {
         method: options.method,
       });

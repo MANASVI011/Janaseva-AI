@@ -16,7 +16,10 @@ import {
 import { LanguageSwitcher } from "@/components/dashboard/language-switcher";
 import { useDashboard } from "@/components/dashboard/dashboard-provider";
 import { getSectionKey } from "@/components/dashboard/sidebar";
-import { getApplications } from "@/lib/document-verification-api";
+import {
+  getApplications,
+  isDemoModeEnabled,
+} from "@/lib/document-verification-api";
 
 type TopbarProps = {
   onMenuClick: () => void;
@@ -211,22 +214,24 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 >
                   <Settings size={15} /> {t.profile.settings}
                 </Link>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLogoutError(false);
-                    try {
-                      await logout();
-                      router.replace("/login");
-                    } catch {
-                      setLogoutError(true);
-                    }
-                    setProfileOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
-                >
-                  <LogOut size={15} /> {t.profile.signOut}
-                </button>
+                {!isDemoModeEnabled() && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLogoutError(false);
+                      try {
+                        await logout();
+                        router.replace("/login");
+                      } catch {
+                        setLogoutError(true);
+                      }
+                      setProfileOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    <LogOut size={15} /> {t.profile.signOut}
+                  </button>
+                )}
               </div>
             )}
           </div>

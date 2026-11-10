@@ -60,8 +60,20 @@ describe("demo authentication", () => {
 
     await loginOfficer("any-name", "any-password");
     await expect(logoutOfficer()).resolves.toEqual({ success: true });
-    await expect(getAuthSession()).rejects.toThrow("unauthorized");
     expect(window.localStorage.length).toBe(0);
+    await expect(getAuthSession()).resolves.toMatchObject({
+      officer: { id: "demo-authorized-officer" },
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("creates a persistent demo session automatically for direct dashboard access", async () => {
+    const session = await getAuthSession();
+    expect(session.officer).toMatchObject({
+      id: "demo-authorized-officer",
+      role: "AUTHORIZED_OFFICER",
+    });
+    expect(await getAuthSession()).toEqual(session);
     expect(fetch).not.toHaveBeenCalled();
   });
 

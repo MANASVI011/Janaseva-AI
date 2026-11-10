@@ -193,7 +193,7 @@ export function isDocumentDemoAuthEnabled() {
 }
 
 export function isDemoModeEnabled() {
-  return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  return process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
 }
 
 async function request<T>(
@@ -263,7 +263,12 @@ async function request<T>(
     }
   } catch (cause) {
     if (cause instanceof DocumentApiError) {
-      if (isDemoModeEnabled() && (cause.status === 0 || cause.status >= 500)) {
+      const readOnlyRequest = (init.method ?? "GET").toUpperCase() === "GET";
+      if (
+        isDemoModeEnabled() &&
+        readOnlyRequest &&
+        (cause.status === 0 || cause.status === 401 || cause.status >= 500)
+      ) {
         if (responseType === "blob") {
           return new Blob(["Janaseva AI offline demonstration export."]) as T;
         }

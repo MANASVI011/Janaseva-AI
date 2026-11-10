@@ -163,7 +163,7 @@ templates use placeholders. The root `.gitignore` ignores `.env` files.
 | `DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED`           | NestJS             | Local demo-header auth control. Must be disabled in production.                                          |
 | `DOCUMENT_STORAGE_PATH`                             | NestJS             | Private local document directory; defaults to `.private-documents` under the backend working directory.  |
 | `NEXT_PUBLIC_API_BASE_URL`                          | Next.js            | Optional local Next.js proxy destination; browser requests use same-origin `/api` paths.                 |
-| `NEXT_PUBLIC_DEMO_MODE`                             | Next.js            | Enables the clearly labeled, browser-persisted public demo session; pair only with backend `DEMO_MODE`. |
+| `NEXT_PUBLIC_DEMO_MODE`                             | Next.js            | Defaults to the clearly labeled public demo session; set `false` to use officer login. |
 | `NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH`       | Next.js            | Enables the development demo header; set to `false` when using a token.                                  |
 | `AI_PROVIDER`                                       | FastAPI            | Active provider; currently `groq`.                                                                       |
 | `GROQ_API_KEY`                                      | FastAPI            | Secret Groq API key. Keep server-side only.                                                              |
@@ -180,15 +180,16 @@ defaults, place only the two `NEXT_PUBLIC_*` settings in
 `frontend/.env.local`. Do not copy database credentials or private tokens into
 frontend configuration.
 
-Public demo mode is deliberately unauthenticated and is not suitable for real
-applicant or government records. To enable it on a separate demo deployment,
-set `NEXT_PUBLIC_DEMO_MODE=true` on the frontend and `DEMO_MODE=true` on the
-backend. The backend additionally requires `DEMO_DATABASE_URL`, and refuses to
-start if it points to the same host and database as `DATABASE_URL`. Use a
-separately provisioned, pre-migrated database containing synthetic data only.
-Keep `DATABASE_URL` pointed at the production database; runtime queries in
-demo mode use only `DEMO_DATABASE_URL`. This repository does not provision or
-seed the demo database automatically.
+Public demo mode defaults on when `NEXT_PUBLIC_DEMO_MODE` is unset, redirects
+the login route directly to the dashboard, and serves local synthetic data when
+read-only API requests are unauthorized or unavailable. It is not suitable for
+real applicant or government records. Set `NEXT_PUBLIC_DEMO_MODE=false` to
+require officer login. Backend demo-header authentication remains disabled
+unless `DEMO_MODE=true` is explicitly configured. If enabled, the backend
+additionally requires `DEMO_DATABASE_URL` and refuses to start if it points to
+the same host and database as `DATABASE_URL`. Use a separately provisioned,
+pre-migrated database containing synthetic data only. This repository does not
+provision or seed the demo database automatically.
 
 PrismaService uses `DATABASE_URL` at runtime. For production migrations, set
 `DATABASE_URL_UNPOOLED` in the migration environment; `prisma migrate` uses

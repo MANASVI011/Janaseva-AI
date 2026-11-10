@@ -60,12 +60,22 @@ function readDemoSession(): AuthSession | null {
 
 export function getAuthSession() {
   if (isDemoModeEnabled()) {
-    const session = readDemoSession();
-    return session
-      ? Promise.resolve(session)
-      : Promise.reject(new Error("unauthorized"));
+    return Promise.resolve(readDemoSession() ?? createDemoSession());
   }
   return authRequest<AuthSession>("session");
+}
+
+function createDemoSession(): AuthSession {
+  const session: AuthSession = {
+    officer: {
+      id: "demo-authorized-officer",
+      name: "Demonstration Reviewer",
+      role: "AUTHORIZED_OFFICER",
+    },
+    expiresAt: new Date(Date.now() + demoSessionLifetimeMs).toISOString(),
+  };
+  window.localStorage.setItem(demoSessionStorageKey, JSON.stringify(session));
+  return session;
 }
 
 export function loginOfficer(username: string, password: string) {
@@ -73,16 +83,7 @@ export function loginOfficer(username: string, password: string) {
     if (!username.trim() || !password) {
       return Promise.reject(new Error("unauthorized"));
     }
-    const session: AuthSession = {
-      officer: {
-        id: "demo-authorized-officer",
-        name: "Demonstration Reviewer",
-        role: "AUTHORIZED_OFFICER",
-      },
-      expiresAt: new Date(Date.now() + demoSessionLifetimeMs).toISOString(),
-    };
-    window.localStorage.setItem(demoSessionStorageKey, JSON.stringify(session));
-    return Promise.resolve(session);
+    return Promise.resolve(createDemoSession());
   }
   return authRequest<AuthSession>("login", {
     method: "POST",

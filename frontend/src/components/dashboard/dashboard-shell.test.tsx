@@ -65,6 +65,22 @@ describe("dashboard route protection", () => {
     expect(screen.getByText("Protected reports")).toBeInTheDocument();
   });
 
+  it("allows direct demo dashboard access without a prior sign-in", () => {
+    route.pathname = "/";
+    route.officer = {
+      id: "demo-authorized-officer",
+      name: "Demonstration Reviewer",
+      role: "AUTHORIZED_OFFICER",
+    };
+    render(
+      <DashboardShell initialLanguage="kn" hasLanguageCookie>
+        <p>Dashboard ready</p>
+      </DashboardShell>,
+    );
+    expect(screen.getByText("Dashboard ready")).toBeInTheDocument();
+    expect(route.replace).not.toHaveBeenCalled();
+  });
+
   it.each([
     "/",
     "/applications",
