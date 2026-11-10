@@ -14,10 +14,6 @@ const words = {
     suggestedQuestions: "ಸೂಚಿಸಿದ ಪ್ರಶ್ನೆಗಳು",
     officerAttentionPoints: "ಅಧಿಕಾರಿಯ ಗಮನಕ್ಕೆ",
     noFindings: "ಯಾವುದೂ ಗುರುತಿಸಲಾಗಿಲ್ಲ",
-    notEvaluated: "ಡೆಮೋ ಉದಾಹರಣೆಯಲ್ಲಿ ಮೌಲ್ಯಮಾಪನ ಮಾಡಲಾಗಿಲ್ಲ.",
-    demoFallback:
-      "ಡೆಮೋ ಉದಾಹರಣೆ ಮಾತ್ರ — AI ಸೇವೆ ಲಭ್ಯವಿರಲಿಲ್ಲ. AI ವಿಶ್ಲೇಷಣೆ ರಚಿಸಲಾಗಿಲ್ಲ; ಇದು ಅರ್ಜಿಯನ್ನು ಮೌಲ್ಯಮಾಪನ ಮಾಡುವುದಿಲ್ಲ.",
-    demoFallbackAction: "ಡೆಮೋ ಉದಾಹರಣೆ ತೋರಿಸಿ",
     disclaimer:
       "AI-generated assistance is advisory only. The authorized officer must independently verify all findings and make the final decision. AI ಸಹಾಯವು ಸಲಹಾತ್ಮಕ ಮಾತ್ರ; ಅಧಿಕೃತ ಅಧಿಕಾರಿಯು ಎಲ್ಲಾ ಕಂಡುಬಂದ ಅಂಶಗಳನ್ನು ಸ್ವತಂತ್ರವಾಗಿ ಪರಿಶೀಲಿಸಿ ಅಂತಿಮ ನಿರ್ಧಾರ ಮಾಡಬೇಕು.",
     authError: "AI ವಿಶ್ಲೇಷಣೆಗೆ ಅಧಿಕಾರಿ ದೃಢೀಕರಣ ಅಗತ್ಯ.",
@@ -54,10 +50,6 @@ const words = {
     suggestedQuestions: "Suggested questions",
     officerAttentionPoints: "Officer attention points",
     noFindings: "None identified",
-    notEvaluated: "Not evaluated in this demonstration example.",
-    demoFallback:
-      "Demonstration example only — the AI service was unavailable. No AI analysis was generated, and this example does not assess the application.",
-    demoFallbackAction: "Show demo example",
     disclaimer:
       "AI-generated assistance is advisory only. The authorized officer must independently verify all findings and make the final decision.",
     authError: "Officer authentication is required for AI analysis.",

@@ -196,7 +196,7 @@ describe("demo authentication", () => {
     });
   });
 
-  it("returns an explicitly synthetic AI fallback only for service outages", async () => {
+  it("does not replace an unavailable AI service with synthetic analysis", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -208,12 +208,7 @@ describe("demo authentication", () => {
 
     await expect(
       analyzeApplication("INC-2026-1208", "en"),
-    ).resolves.toMatchObject({
-      demoFallback: true,
-      summary: expect.stringContaining("No AI analysis was generated"),
-      disclaimer: expect.stringContaining("No AI service request succeeded"),
-      missingInformation: [],
-    });
+    ).rejects.toMatchObject({ status: 500 });
   });
 
   it("does not replace authentication failures with a synthetic AI fallback", async () => {

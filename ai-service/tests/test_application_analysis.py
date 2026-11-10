@@ -159,12 +159,13 @@ def test_official_sdk_receives_structured_json_configuration(
     assert result.summary == SAMPLE_ANALYSIS["summary"]
     assert request["model"] == "qwen/qwen3.8-27b"
     assert request["max_completion_tokens"] == 1024
-    assert request["reasoning_effort"] == "none"
-    assert request["reasoning_format"] == "hidden"
+    assert "reasoning_effort" not in request
+    assert "reasoning_format" not in request
     assert request["response_format"]["type"] == "json_schema"
     assert request["response_format"]["json_schema"]["strict"] is True
     schema = request["response_format"]["json_schema"]["schema"]
     assert schema["required"] == list(schema["properties"])
+    assert schema["properties"]["disclaimer"]["enum"] == [groq_provider.DISCLAIMER]
     assert schema["additionalProperties"] is False
     assert schema["type"] == "object"
     assert "maxLength" not in json.dumps(schema)

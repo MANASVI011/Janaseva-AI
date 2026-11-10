@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApplicationAiAnalysis } from "./application-ai-analysis";
 
@@ -12,7 +12,7 @@ vi.mock("@/components/dashboard/dashboard-provider", () => ({
   useDashboard: () => ({ language: "en" }),
 }));
 
-describe("AI analysis demo fallback", () => {
+describe("AI application analysis", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "true");
     api.getAiProviderStatus.mockResolvedValue({
@@ -21,17 +21,6 @@ describe("AI analysis demo fallback", () => {
       status: "UNAVAILABLE",
       reason: "AI_SERVICE_UNAVAILABLE",
     });
-    api.analyzeApplication.mockResolvedValue({
-      demoFallback: true,
-      summary: "No AI analysis was generated.",
-      missingInformation: [],
-      potentialInconsistencies: [],
-      documentObservations: [],
-      fieldVerificationObservations: [],
-      suggestedQuestions: [],
-      officerAttentionPoints: [],
-      disclaimer: "Synthetic demonstration only.",
-    });
   });
 
   afterEach(() => {
@@ -39,28 +28,19 @@ describe("AI analysis demo fallback", () => {
     vi.clearAllMocks();
   });
 
-  it("offers a labeled demo example when AI is unavailable and says findings were not evaluated", async () => {
+  it("does not offer or render synthetic analysis when the AI service is unavailable", async () => {
     render(<ApplicationAiAnalysis applicationId="INC-2026-1208" />);
 
     const button = await screen.findByRole("button", {
-      name: "Show demo example",
+      name: "Analyze Application with AI",
     });
-    expect(button).toBeEnabled();
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(api.analyzeApplication).toHaveBeenCalledWith(
-        "INC-2026-1208",
-        "en",
-      );
-    });
+    expect(button).toBeDisabled();
     expect(
-      await screen.findByText(
-        "Demonstration example only — the AI service was unavailable. No AI analysis was generated, and this example does not assess the application.",
-      ),
+      screen.getByText("The AI service is unavailable. Please retry."),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByText("Not evaluated in this demonstration example."),
-    ).toHaveLength(6);
+      screen.queryByText(/demonstration example/i),
+    ).not.toBeInTheDocument();
+    expect(api.analyzeApplication).not.toHaveBeenCalled();
   });
 });

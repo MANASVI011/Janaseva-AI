@@ -11,7 +11,6 @@ import {
   type AiProviderStatus,
 } from "@/lib/ai-analysis-api";
 import { getAiAnalysisCopy } from "@/lib/ai-analysis-i18n";
-import { isDemoModeEnabled } from "@/lib/document-verification-api";
 
 function analysisError(
   cause: unknown,
@@ -129,7 +128,6 @@ export function ApplicationAiAnalysis({
 }) {
   const { language } = useDashboard();
   const copy = getAiAnalysisCopy(language);
-  const demoMode = isDemoModeEnabled();
   const [analysisResult, setAnalysisResult] = useState<{
     applicationId: string;
     result: AiAnalysis;
@@ -186,14 +184,9 @@ export function ApplicationAiAnalysis({
   }, []);
 
   const providerError = getProviderError(providerStatus, copy);
-  const canShowDemoFallback =
-    demoMode &&
-    (providerStatus?.status === "UNAVAILABLE" ||
-      providerStatus?.status === "NOT_CONFIGURED");
   const canRunAnalysis =
     providerStatus !== null &&
-    (["CONNECTED", "CONFIGURED"].includes(providerStatus.status) ||
-      canShowDemoFallback);
+    ["CONNECTED", "CONFIGURED"].includes(providerStatus.status);
 
   useEffect(() => {
     if (retrySeconds <= 0) return;
@@ -275,9 +268,7 @@ export function ApplicationAiAnalysis({
             ? copy.analyzing
             : retrySeconds > 0
               ? copy.retryIn(retrySeconds)
-              : canShowDemoFallback
-                ? copy.demoFallbackAction
-                : copy.analyze}
+              : copy.analyze}
         </button>
       </div>
       <div className="space-y-4 p-4 sm:p-5">
@@ -309,14 +300,6 @@ export function ApplicationAiAnalysis({
         )}
         {analysis && (
           <div className="space-y-4" aria-live="polite">
-            {analysis.demoFallback && (
-              <p
-                role="status"
-                className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950"
-              >
-                {copy.demoFallback}
-              </p>
-            )}
             <p className="text-xs leading-5 text-slate-800">
               <span className="font-semibold">{copy.summary}: </span>
               {analysis.summary}
@@ -325,44 +308,32 @@ export function ApplicationAiAnalysis({
               <FindingList
                 title={copy.missingInformation}
                 findings={analysis.missingInformation}
-                empty={
-                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
-                }
+                empty={copy.noFindings}
               />
               <FindingList
                 title={copy.potentialInconsistencies}
                 findings={analysis.potentialInconsistencies}
-                empty={
-                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
-                }
+                empty={copy.noFindings}
               />
               <FindingList
                 title={copy.documentObservations}
                 findings={analysis.documentObservations}
-                empty={
-                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
-                }
+                empty={copy.noFindings}
               />
               <FindingList
                 title={copy.fieldVerificationObservations}
                 findings={analysis.fieldVerificationObservations}
-                empty={
-                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
-                }
+                empty={copy.noFindings}
               />
               <FindingList
                 title={copy.suggestedQuestions}
                 findings={analysis.suggestedQuestions}
-                empty={
-                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
-                }
+                empty={copy.noFindings}
               />
               <FindingList
                 title={copy.officerAttentionPoints}
                 findings={analysis.officerAttentionPoints}
-                empty={
-                  analysis.demoFallback ? copy.notEvaluated : copy.noFindings
-                }
+                empty={copy.noFindings}
               />
             </div>
           </div>

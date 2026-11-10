@@ -18,4 +18,7 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
   await app.listen(process.env.PORT ?? 3002);
 }
-await bootstrap();
+bootstrap().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

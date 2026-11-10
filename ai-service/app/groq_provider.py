@@ -266,12 +266,14 @@ def _response_schema() -> dict[str, Any]:
             return [supported_schema(item) for item in value]
         return value
 
+    schema = supported_schema(ApplicationAnalysis.model_json_schema(by_alias=True))
+    schema["properties"]["disclaimer"]["enum"] = [DISCLAIMER]
     return {
         "type": "json_schema",
         "json_schema": {
             "name": "application_analysis",
             "strict": True,
-            "schema": supported_schema(ApplicationAnalysis.model_json_schema(by_alias=True)),
+            "schema": schema,
         },
     }
 
@@ -290,8 +292,6 @@ def _generate(contents: str, *, structured: bool) -> str:
         "max_completion_tokens": MAX_OUTPUT_TOKENS if structured else 8,
     }
     if structured:
-        request["reasoning_effort"] = "none"
-        request["reasoning_format"] = "hidden"
         request["response_format"] = _response_schema()
     started = time.monotonic()
     try:

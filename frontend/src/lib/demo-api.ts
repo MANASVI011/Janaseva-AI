@@ -485,10 +485,7 @@ export function getDemoApiResponse(path: string, init: RequestInit = {}) {
   const method = (init.method ?? "GET").toUpperCase();
   const url = new URL(path, "http://demo.local");
   const pathname = url.pathname;
-  if (
-    method !== "GET" &&
-    !(method === "POST" && /\/ai-analysis$/.test(pathname))
-  ) {
+  if (method !== "GET") {
     return null;
   }
   const applicationMatch = pathname.match(/^\/applications\/([^/]+)\/(.+)$/);
@@ -596,21 +593,5 @@ export function getDemoApiResponse(path: string, init: RequestInit = {}) {
     };
   }
   if (endpoint === "final-review") return finalReviewApplication(applicationId);
-  if (endpoint === "ai-analysis") {
-    return {
-      demoFallback: true,
-      summary:
-        "No AI analysis was generated. The AI service is unavailable, so this synthetic demonstration does not assess this application.",
-      missingInformation: [],
-      potentialInconsistencies: [],
-      documentObservations: [],
-      fieldVerificationObservations: [],
-      suggestedQuestions: [],
-      officerAttentionPoints: [],
-      disclaimer:
-        "Synthetic demonstration only. No AI service request succeeded. The authorized officer must independently review the application and make any final decision.",
-    };
-  }
-
   return null;
 }
