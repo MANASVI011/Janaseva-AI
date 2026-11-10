@@ -40,7 +40,7 @@ const workflowStages = [
 ];
 
 export function HistoryPage() {
-  const { language, documentApiToken } = useDashboard();
+  const { language } = useDashboard();
   const words = getOperationsWords(language);
   const [filters, setFilters] = useState<OperationsFilters>(emptyFilters);
   const [appliedFilters, setAppliedFilters] =
@@ -71,7 +71,7 @@ export function HistoryPage() {
 
   useEffect(() => {
     let active = true;
-    getDashboardHistory(documentApiToken, appliedFilters, page, 20)
+    getDashboardHistory(appliedFilters, page, 20)
       .then((result) => {
         if (active) {
           setHistory(result);
@@ -87,11 +87,11 @@ export function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [appliedFilters, documentApiToken, page, reload, words.loadError]);
+  }, [appliedFilters, page, reload, words.loadError]);
 
   useEffect(() => {
     let active = true;
-    getVerificationOfficers(documentApiToken)
+    getVerificationOfficers()
       .then((result) => {
         if (active) {
           setOfficers(result);
@@ -105,7 +105,7 @@ export function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [documentApiToken, words.loadError]);
+  }, [words.loadError]);
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,7 +137,7 @@ export function HistoryPage() {
     setExporting(true);
     setError("");
     try {
-      const file = await downloadHistoryCsv(documentApiToken, appliedFilters);
+      const file = await downloadHistoryCsv(appliedFilters);
       downloadBlob(file, "janaseva-history.csv");
     } catch (cause) {
       setError(getOperationsErrorMessage(cause, words.loadError));

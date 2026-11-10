@@ -134,13 +134,13 @@ function formatTime(value: string, language: "kn" | "en") {
 }
 
 export function RecentActivity() {
-  const { language, t, documentApiToken } = useDashboard();
+  const { language, t } = useDashboard();
   const [items, setItems] = useState<HistoryRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    getDashboardHistory(documentApiToken, emptyFilters, 1, 5)
+    getDashboardHistory(emptyFilters, 1, 5)
       .then((result) => {
         if (!active) return;
         setItems(result.items.slice(0, 5));
@@ -157,7 +157,7 @@ export function RecentActivity() {
     return () => {
       active = false;
     };
-  }, [documentApiToken]);
+  }, []);
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:p-5">
@@ -261,7 +261,7 @@ export function QuickActions() {
 }
 
 export function StatCards() {
-  const { language, t, documentApiToken } = useDashboard();
+  const { language, t } = useDashboard();
   const [report, setReport] = useState<{
     totalApplications: number;
     pendingApplications: number;
@@ -272,7 +272,7 @@ export function StatCards() {
 
   useEffect(() => {
     let active = true;
-    getDashboardReport(documentApiToken, emptyFilters, 1, 1)
+    getDashboardReport(emptyFilters, 1, 1)
       .then((result) => {
         if (!active) return;
         setReport({
@@ -297,7 +297,7 @@ export function StatCards() {
     return () => {
       active = false;
     };
-  }, [documentApiToken, language]);
+  }, [language]);
 
   const stats = [
     {

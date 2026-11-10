@@ -116,7 +116,7 @@ function getErrorMessage(
 }
 
 export function FinalReviewPage() {
-  const { documentApiToken, language, t } = useDashboard();
+  const { language, t } = useDashboard();
   const copy = getFinalReviewCopy(language);
   const fieldCopy = getFieldVerificationCopy(language);
   const documentActionNames = t.documentVerification.page.actionName;
@@ -154,7 +154,7 @@ export function FinalReviewPage() {
     setQueueLoading(true);
     setQueueError("");
     try {
-      const result = await getFinalReviewQueue(documentApiToken, search);
+      const result = await getFinalReviewQueue(search);
       setQueue(result);
       setDemoReviewerId((current) =>
         current && result.reviewers.some((reviewer) => reviewer.id === current)
@@ -171,7 +171,7 @@ export function FinalReviewPage() {
     } finally {
       setQueueLoading(false);
     }
-  }, [copy, documentApiToken, search]);
+  }, [copy, search]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadQueue(), 150);
@@ -188,10 +188,10 @@ export function FinalReviewPage() {
     setDetailError("");
     try {
       const [detail, documents, field, documentHistory] = await Promise.all([
-        getFinalReviewApplication(documentApiToken, selectedId),
-        getApplicationDocuments(documentApiToken, selectedId),
-        getFieldApplication(selectedId, documentApiToken),
-        getApplicationHistory(documentApiToken, selectedId),
+        getFinalReviewApplication(selectedId),
+        getApplicationDocuments(selectedId),
+        getFieldApplication(selectedId),
+        getApplicationHistory(selectedId),
       ]);
       if (request !== requestId.current) return;
       setReview({ detail, documents, field, documentHistory });
@@ -202,7 +202,7 @@ export function FinalReviewPage() {
     } finally {
       if (request === requestId.current) setDetailLoading(false);
     }
-  }, [copy, documentApiToken, selectedId]);
+  }, [copy, selectedId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadReview(), 0);
@@ -272,7 +272,7 @@ export function FinalReviewPage() {
       : null;
   const application = current?.detail.application;
   const report = current?.field.verification;
-  const demoMode = !documentApiToken && isDocumentDemoAuthEnabled();
+  const demoMode = isDocumentDemoAuthEnabled();
   const canDecide =
     application?.workflowStage === "FINAL_REVIEW" &&
     Boolean(current?.detail.eligibility.allowed) &&
@@ -299,7 +299,6 @@ export function FinalReviewPage() {
     setDecisionError("");
     try {
       await submitFinalDecision(
-        documentApiToken,
         selectedId,
         selectedDecision,
         remarks,

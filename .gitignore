@@ -27,3 +27,4 @@ backend/src/generated/prisma/
 # Editors and operating systems
 .DS_Store
 .vscode/
+.neon

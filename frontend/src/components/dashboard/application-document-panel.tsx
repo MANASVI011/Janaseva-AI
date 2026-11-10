@@ -32,7 +32,6 @@ import {
   fetchDocumentBlob,
   getApplicationDocuments,
   getApplicationHistory,
-  isDocumentDemoAuthEnabled,
   markDocumentRequired,
   rejectDocument,
   requestDocumentReplacement,
@@ -301,9 +300,8 @@ export function ApplicationDocumentPanel({
   onApplicationStatus: (value: ApplicationDocuments["application"]) => void;
   readOnly?: boolean;
 }) {
-  const { documentApiToken, language, t } = useDashboard();
-  const hasDocumentApiAccess =
-    Boolean(documentApiToken) || isDocumentDemoAuthEnabled();
+  const { language, t } = useDashboard();
+  const hasDocumentApiAccess = true;
   const copy = t.documentVerification;
   const pageCopy = copy.page;
   const [data, setData] = useState<ApplicationDocuments | null>(null);
@@ -353,8 +351,8 @@ export function ApplicationDocumentPanel({
     setLoading(true);
     try {
       const [applicationData, events] = await Promise.all([
-        getApplicationDocuments(documentApiToken, applicationId),
-        getApplicationHistory(documentApiToken, applicationId),
+        getApplicationDocuments(applicationId),
+        getApplicationHistory(applicationId),
       ]);
       setData(applicationData);
       setHistory(events);
@@ -380,7 +378,7 @@ export function ApplicationDocumentPanel({
     } finally {
       setLoading(false);
     }
-  }, [applicationId, copy, documentApiToken, hasDocumentApiAccess]);
+  }, [applicationId, copy, hasDocumentApiAccess]);
 
   useEffect(() => {
     void Promise.resolve().then(loadData);
@@ -414,11 +412,7 @@ export function ApplicationDocumentPanel({
     const optionalRemarks = remarks || undefined;
     try {
       if (dialog === "verify" && activeDocument?.id) {
-        const result = await verifyDocument(
-          documentApiToken,
-          activeDocument.id,
-          optionalRemarks,
-        );
+        const result = await verifyDocument(activeDocument.id, optionalRemarks);
         if (
           result.document !== activeDocument.id ||
           result.version.status !== "VERIFIED"
@@ -478,8 +472,8 @@ export function ApplicationDocumentPanel({
 
         try {
           const [applicationData, events] = await Promise.all([
-            getApplicationDocuments(documentApiToken, applicationId),
-            getApplicationHistory(documentApiToken, applicationId),
+            getApplicationDocuments(applicationId),
+            getApplicationHistory(applicationId),
           ]);
           setData(applicationData);
           setHistory(events);
@@ -488,25 +482,15 @@ export function ApplicationDocumentPanel({
           setError(pageCopy.refreshAfterVerifyFailed);
         }
       } else if (dialog === "reject" && activeDocument?.id) {
-        await rejectDocument(
-          documentApiToken,
-          activeDocument.id,
-          reason,
-          optionalRemarks,
-        );
+        await rejectDocument(activeDocument.id, reason, optionalRemarks);
       } else if (dialog === "replacement" && activeDocument?.id) {
         await requestDocumentReplacement(
-          documentApiToken,
           activeDocument.id,
           reason,
           optionalRemarks,
         );
       } else if (dialog === "required" && requiredDocument?.id) {
-        await markDocumentRequired(
-          documentApiToken,
-          requiredDocument.id,
-          reason.trim(),
-        );
+        await markDocumentRequired(requiredDocument.id, reason.trim());
       } else if (dialog === "missing" && data) {
         const selected = data.documents.filter((document) =>
           selectedMissing.includes(`${document.category}:${document.label}`),
@@ -517,7 +501,6 @@ export function ApplicationDocumentPanel({
           return;
         }
         await requestMissingDocuments(
-          documentApiToken,
           applicationId,
           selected.map((document) => ({
             category: document.category,
@@ -579,7 +562,6 @@ export function ApplicationDocumentPanel({
     setProgress(0);
     try {
       await uploadApplicationDocument(
-        documentApiToken,
         applicationId,
         file,
         category,
@@ -634,12 +616,7 @@ export function ApplicationDocumentPanel({
     setBusy(true);
     setError("");
     try {
-      const blob = await fetchDocumentBlob(
-        documentApiToken,
-        document.id,
-        versionId,
-        download,
-      );
+      const blob = await fetchDocumentBlob(document.id, versionId, download);
       if (download) {
         const url = URL.createObjectURL(blob);
         const anchor = window.document.createElement("a");
@@ -1188,11 +1165,7 @@ export function ApplicationDocumentPanel({
     setBusy(true);
     setError("");
     try {
-      await markDocumentRequired(
-        documentApiToken,
-        requiredDocument.id,
-        requiredReason.trim(),
-      );
+      await markDocumentRequired(requiredDocument.id, requiredReason.trim());
       setDialog(null);
       setRequiredDocument(null);
       setSuccess(pageCopy.updateSuccess);

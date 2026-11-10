@@ -23,10 +23,11 @@ type TopbarProps = {
 };
 
 export function Topbar({ onMenuClick }: TopbarProps) {
-  const { search, setSearch, t, documentApiToken } = useDashboard();
+  const { search, setSearch, t, officer, logout } = useDashboard();
   const pathname = usePathname();
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
   const [searchResults, setSearchResults] = useState<
     Array<{ id: string; applicantName: string }>
   >([]);
@@ -41,6 +42,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   const query = search.trim();
   const results = query.length >= 2 ? searchResults : [];
+  const initials =
+    officer?.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toLocaleUpperCase())
+      .join("") ?? "AI";
 
   useEffect(() => {
     if (query.length < 2) return;
@@ -52,7 +60,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       search: query,
     });
 
-    getApplications(documentApiToken, parameters)
+    getApplications(parameters)
       .then((result) => {
         if (!active) return;
         setSearchResults(
@@ -69,7 +77,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     return () => {
       active = false;
     };
-  }, [documentApiToken, query]);
+  }, [query]);
 
   function openSearchResult() {
     router.push("/applications");
@@ -169,18 +177,26 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               onClick={() => setProfileOpen((open) => !open)}
               className="flex size-9 items-center justify-center rounded-full bg-[#dbe8f3] text-[11px] font-semibold text-[#213954] ring-2 ring-white transition hover:ring-slate-200"
             >
-              MG
+              {initials}
             </button>
             {profileOpen && (
               <div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
                 <div className="border-b border-slate-100 px-4 py-3">
                   <p className="text-xs font-semibold text-slate-900">
-                    Manasvi Gowda
+                    {officer?.name}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    {t.profile.designation}
+                    {officer?.role.replaceAll("_", " ")}
                   </p>
                 </div>
+                {logoutError && (
+                  <p
+                    className="px-4 py-2 text-[11px] text-rose-700"
+                    role="alert"
+                  >
+                    {t.profile.signOutError}
+                  </p>
+                )}
                 <Link
                   href="/settings"
                   onClick={() => setProfileOpen(false)}
@@ -197,7 +213,16 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => setProfileOpen(false)}
+                  onClick={async () => {
+                    setLogoutError(false);
+                    try {
+                      await logout();
+                      router.replace("/login");
+                    } catch {
+                      setLogoutError(true);
+                    }
+                    setProfileOpen(false);
+                  }}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
                 >
                   <LogOut size={15} /> {t.profile.signOut}

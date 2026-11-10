@@ -138,49 +138,43 @@ function queryString(
 }
 
 export function getDashboardReport(
-  token: string,
   filters: OperationsFilters,
   page: number,
   pageSize: number,
 ) {
   return requestOfficerApi<DashboardReport>(
-    token,
     `/reports?${queryString(filters, page, pageSize)}`,
   );
 }
 
 export function getDashboardHistory(
-  token: string,
   filters: OperationsFilters,
   page: number,
   pageSize: number,
 ) {
   return requestOfficerApi<DashboardHistory>(
-    token,
     `/history?${queryString(filters, page, pageSize)}`,
   );
 }
 
-export function downloadReportCsv(token: string, filters: OperationsFilters) {
+export function downloadReportCsv(filters: OperationsFilters) {
   return requestOfficerApi<Blob>(
-    token,
     `/reports/export?${queryString(filters, 1, 1)}`,
     { headers: { Accept: "text/csv" } },
     "blob",
   );
 }
 
-export function downloadHistoryCsv(token: string, filters: OperationsFilters) {
+export function downloadHistoryCsv(filters: OperationsFilters) {
   return requestOfficerApi<Blob>(
-    token,
     `/history/export?${queryString(filters, 1, 1)}`,
     { headers: { Accept: "text/csv" } },
     "blob",
   );
 }
 
-export function getOfficerProfile(token: string) {
-  return requestOfficerApi<OfficerProfile>(token, "/settings/profile");
+export function getOfficerProfile() {
+  return requestOfficerApi<OfficerProfile>("/settings/profile");
 }
 
 export function getOperationsErrorMessage(error: unknown, fallback: string) {

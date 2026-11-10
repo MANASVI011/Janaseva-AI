@@ -171,6 +171,7 @@ describe('Final Review API (e2e)', () => {
   it('denies a caseworker attempting to submit a decision', async () => {
     await request(app.getHttpServer())
       .post(`/api/applications/${record.id}/final-review/decision`)
+      .set('Origin', 'http://localhost:3001')
       .set('X-Janaseva-Demo-Auth', 'enabled')
       .send({ decision: ApplicationDecisionType.APPROVE })
       .expect(403);
@@ -179,6 +180,7 @@ describe('Final Review API (e2e)', () => {
   it('persists an explicit authorised officer decision through the API', async () => {
     const response = await request(app.getHttpServer())
       .post(`/api/applications/${record.id}/final-review/decision`)
+      .set('Origin', 'http://localhost:3001')
       .set('X-Janaseva-Demo-Auth', 'enabled')
       .set('X-Janaseva-Demo-Review-Officer', 'demo-authorized-officer')
       .send({

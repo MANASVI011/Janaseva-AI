@@ -11,7 +11,7 @@ import {
 import { getOperationsWords } from "@/lib/operations-i18n";
 
 export function SettingsPage() {
-  const { language, documentApiToken } = useDashboard();
+  const { language } = useDashboard();
   const words = getOperationsWords(language);
   const [profile, setProfile] = useState<OfficerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -20,7 +20,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     let active = true;
-    getOfficerProfile(documentApiToken)
+    getOfficerProfile()
       .then((result) => {
         if (active) {
           setProfile(result);
@@ -37,7 +37,7 @@ export function SettingsPage() {
     return () => {
       active = false;
     };
-  }, [documentApiToken, profileReload, words.loadError]);
+  }, [profileReload, words.loadError]);
 
   return (
     <div className="space-y-6">

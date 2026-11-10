@@ -5,6 +5,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3001',
+    credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'OPTIONS'],
     allowedHeaders: [
       'Authorization',
@@ -14,6 +15,7 @@ async function bootstrap() {
       'X-Janaseva-Demo-Review-Officer',
     ],
   });
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   await app.listen(process.env.PORT ?? 3002);
 }
 await bootstrap();

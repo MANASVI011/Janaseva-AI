@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import {
   DashboardProvider,
   useDashboard,
 } from "@/components/dashboard/dashboard-provider";
+import { LoginPage } from "@/components/dashboard/login-page";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import type { Language } from "@/lib/dashboard-i18n";
@@ -18,30 +22,62 @@ export function DashboardShell({
   initialLanguage: Language;
   hasLanguageCookie: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   return (
     <DashboardProvider
       initialLanguage={initialLanguage}
       hasLanguageCookie={hasLanguageCookie}
     >
-      <div className="flex min-h-screen bg-[#f5f7fa]">
-        <Sidebar
-          collapsed={collapsed}
-          onToggle={() => setCollapsed((value) => !value)}
-          mobileOpen={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-        />
-        <div className="min-w-0 flex-1">
-          <Topbar onMenuClick={() => setMobileOpen(true)} />
-          <main className="mx-auto w-full max-w-[1640px] px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-            {children}
-          </main>
-          <DashboardFooter />
+      <DashboardFrame>{children}</DashboardFrame>
+    </DashboardProvider>
+  );
+}
+
+function DashboardFrame({ children }: { children: ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { authLoading, officer } = useDashboard();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isLoginPage = pathname === "/login";
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (isLoginPage && officer) router.replace("/");
+    else if (!isLoginPage && !officer) router.replace("/login");
+  }, [authLoading, isLoginPage, officer, router]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f7fa]">
+        <div
+          className="flex items-center gap-3 text-sm text-slate-600"
+          role="status"
+        >
+          <ShieldCheck className="animate-pulse text-teal-700" size={22} />
+          ಜನಸೇವಾ AI
         </div>
       </div>
-    </DashboardProvider>
+    );
+  }
+  if (isLoginPage) return <LoginPage />;
+  if (!officer) return null;
+
+  return (
+    <div className="flex min-h-screen bg-[#f5f7fa]">
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((value) => !value)}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
+      <div className="min-w-0 flex-1">
+        <Topbar onMenuClick={() => setMobileOpen(true)} />
+        <main className="mx-auto w-full max-w-[1640px] px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+          {children}
+        </main>
+        <DashboardFooter />
+      </div>
+    </div>
   );
 }
 

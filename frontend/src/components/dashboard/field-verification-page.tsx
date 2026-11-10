@@ -127,7 +127,7 @@ function activityLabel(action: string, language: "kn" | "en") {
 }
 
 export function FieldVerificationPage() {
-  const { language, documentApiToken } = useDashboard();
+  const { language } = useDashboard();
   const aiCopy = getAiAnalysisCopy(language);
   const copy = getFieldVerificationCopy(language);
   const [filters, setFilters] = useState(initialFilters);
@@ -182,7 +182,7 @@ export function FieldVerificationPage() {
     setLoadingQueue(true);
     setPageError("");
     try {
-      const result = await getFieldQueue(parameters, documentApiToken);
+      const result = await getFieldQueue(parameters);
       setQueue(result);
       setSelectedId((current) =>
         result.items.some((item) => item.applicationId === current)
@@ -194,7 +194,7 @@ export function FieldVerificationPage() {
     } finally {
       setLoadingQueue(false);
     }
-  }, [copy.errors.load, documentApiToken, parameters]);
+  }, [copy.errors.load, parameters]);
 
   const loadDetail = useCallback(
     async (applicationId: string) => {
@@ -207,10 +207,7 @@ export function FieldVerificationPage() {
       setLoadingDetail(true);
       setError("");
       try {
-        const result = await getFieldApplication(
-          applicationId,
-          documentApiToken,
-        );
+        const result = await getFieldApplication(applicationId);
         if (requestSequence !== detailRequestSequence.current) return;
         setDetail(result);
         const visit = result.verification;
@@ -251,7 +248,7 @@ export function FieldVerificationPage() {
         }
       }
     },
-    [copy.errors.load, documentApiToken],
+    [copy.errors.load],
   );
 
   useEffect(() => {
@@ -407,7 +404,6 @@ export function FieldVerificationPage() {
                   "start",
                   () =>
                     startFieldVisit(verification.id, {
-                      token: documentApiToken,
                       demoOfficerId: actingOfficerId,
                     }),
                   copy.visitStarted,
@@ -853,11 +849,7 @@ export function FieldVerificationPage() {
                           void runAction(
                             "assign",
                             () =>
-                              assignFieldOfficer(
-                                selectedId,
-                                selectedOfficer,
-                                documentApiToken,
-                              ),
+                              assignFieldOfficer(selectedId, selectedOfficer),
                             copy.assignmentSaved,
                           );
                         }}
@@ -980,16 +972,8 @@ export function FieldVerificationPage() {
                             "schedule",
                             () =>
                               scheduled && verification?.id
-                                ? rescheduleFieldVisit(
-                                    verification.id,
-                                    input,
-                                    documentApiToken,
-                                  )
-                                : scheduleFieldVisit(
-                                    selectedId,
-                                    input,
-                                    documentApiToken,
-                                  ),
+                                ? rescheduleFieldVisit(verification.id, input)
+                                : scheduleFieldVisit(selectedId, input),
                             copy.scheduleSaved,
                           );
                         }}
@@ -1181,7 +1165,6 @@ export function FieldVerificationPage() {
                                 followUpRequested,
                               },
                               {
-                                token: documentApiToken,
                                 demoOfficerId: actingOfficerId,
                               },
                             ),
@@ -1202,7 +1185,6 @@ export function FieldVerificationPage() {
                           "submit",
                           () =>
                             submitFieldReport(verification.id, input, {
-                              token: documentApiToken,
                               demoOfficerId: actingOfficerId,
                             }),
                           followUpRequested ||
@@ -1241,10 +1223,10 @@ export function FieldVerificationPage() {
                         void runAction(
                           "assist",
                           async () => {
-                            const result = await requestFieldAssistance(
-                              { observations, checklist: answersForApi() },
-                              documentApiToken,
-                            );
+                            const result = await requestFieldAssistance({
+                              observations,
+                              checklist: answersForApi(),
+                            });
                             setAssistantResult({
                               summary: result.summary,
                               questions: result.suggestedQuestions,

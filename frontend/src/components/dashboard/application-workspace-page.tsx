@@ -319,7 +319,7 @@ export function ApplicationWorkspacePage({
 }: {
   applicationId: string;
 }) {
-  const { documentApiToken, language, t } = useDashboard();
+  const { language, t } = useDashboard();
   const copy = labels[language];
   const fieldCopy = getFieldVerificationCopy(language);
   const [data, setData] = useState<WorkspaceData | null>(null);
@@ -354,10 +354,10 @@ export function ApplicationWorkspacePage({
     try {
       const [field, documents, documentHistory, finalReview] =
         await Promise.all([
-          getFieldApplication(applicationId, documentApiToken),
-          getApplicationDocuments(documentApiToken, applicationId),
-          getApplicationHistory(documentApiToken, applicationId),
-          getFinalReviewApplication(documentApiToken, applicationId),
+          getFieldApplication(applicationId),
+          getApplicationDocuments(applicationId),
+          getApplicationHistory(applicationId),
+          getFinalReviewApplication(applicationId),
         ]);
       if (sequence !== requestSequence.current) return;
       setData({
@@ -377,7 +377,7 @@ export function ApplicationWorkspacePage({
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [applicationId, documentApiToken, t.documentVerification.apiError]);
+  }, [applicationId, t.documentVerification.apiError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadWorkspace(), 0);

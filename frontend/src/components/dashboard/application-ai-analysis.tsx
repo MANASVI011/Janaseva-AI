@@ -126,7 +126,7 @@ export function ApplicationAiAnalysis({
 }: {
   applicationId: string;
 }) {
-  const { documentApiToken, language } = useDashboard();
+  const { language } = useDashboard();
   const copy = getAiAnalysisCopy(language);
   const [analysisResult, setAnalysisResult] = useState<{
     applicationId: string;
@@ -161,7 +161,7 @@ export function ApplicationAiAnalysis({
 
   useEffect(() => {
     let active = true;
-    void getAiProviderStatus(documentApiToken, false)
+    void getAiProviderStatus(false)
       .then((status) => {
         if (active) setProviderStatus(status);
       })
@@ -181,7 +181,7 @@ export function ApplicationAiAnalysis({
     return () => {
       active = false;
     };
-  }, [documentApiToken]);
+  }, []);
 
   const providerError = getProviderError(providerStatus, copy);
 
@@ -209,11 +209,7 @@ export function ApplicationAiAnalysis({
     setAnalysisErrorState(null);
     setAnalysisResult(null);
     try {
-      const result = await analyzeApplication(
-        documentApiToken,
-        applicationId,
-        language,
-      );
+      const result = await analyzeApplication(applicationId, language);
       if (requestId === analysisRequestId.current) {
         setAnalysisResult({ applicationId, result });
       }

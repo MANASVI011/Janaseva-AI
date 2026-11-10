@@ -10,10 +10,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
 import { OfficerRole } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AuthService } from './auth.service.js';
+import { getCookieValue, officerSessionCookie } from './auth-security.js';
 
 export type OfficerIdentity = {
   id: string;
@@ -21,15 +22,10 @@ export type OfficerIdentity = {
   name: string;
 };
 
-type AuthenticatedRequest = Request & { officer?: OfficerIdentity };
-type JwtClaims = {
-  sub?: unknown;
-  role?: unknown;
-  exp?: unknown;
-  iss?: unknown;
+type AuthenticatedRequest = Request & {
+  officer?: OfficerIdentity;
+  officerExpiresAt?: Date;
 };
-
-const roles = new Set<string>(Object.values(OfficerRole));
 const rolesMetadataKey = 'janaseva:officer-roles';
 const demoOfficerId = 'demo-caseworker';
 const demoAuthHeader = 'x-janaseva-demo-auth';
@@ -58,10 +54,33 @@ export class OfficerJwtGuard implements CanActivate {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly auth: AuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const token =
+      getCookieValue(request, officerSessionCookie) ??
+      (request.headers.authorization?.startsWith('Bearer ')
+        ? request.headers.authorization.slice(7)
+        : undefined);
+    if (token) {
+      let officer: Awaited<ReturnType<AuthService['verifySession']>>;
+      try {
+        officer = await this.auth.verifySession(token);
+      } catch (error) {
+        if (error instanceof ServiceUnavailableException) throw error;
+        throw new UnauthorizedException('The officer session is invalid.');
+      }
+      request.officer = {
+        id: officer.id,
+        role: officer.role,
+        name: officer.name,
+      };
+      request.officerExpiresAt = officer.expiresAt;
+      return true;
+    }
+
     const demoEnabled =
       (this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) !==
         'production' &&
@@ -129,91 +148,7 @@ export class OfficerJwtGuard implements CanActivate {
       return true;
     }
 
-    const secret = this.config.get<string>('DOCUMENT_VERIFICATION_JWT_SECRET');
-    if (!secret || Buffer.byteLength(secret) < 32) {
-      throw new ServiceUnavailableException(
-        'Officer authentication is not configured for document verification.',
-      );
-    }
-
-    const authorization = request.headers.authorization;
-    if (!authorization?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('A signed officer token is required.');
-    }
-
-    const [encodedHeader, encodedClaims, encodedSignature, ...extra] =
-      authorization.slice(7).split('.');
-    if (
-      !encodedHeader ||
-      !encodedClaims ||
-      !encodedSignature ||
-      extra.length > 0
-    ) {
-      throw new UnauthorizedException('The officer token is invalid.');
-    }
-
-    let header: unknown;
-    let claims: JwtClaims;
-    try {
-      header = JSON.parse(Buffer.from(encodedHeader, 'base64url').toString());
-      claims = JSON.parse(
-        Buffer.from(encodedClaims, 'base64url').toString(),
-      ) as JwtClaims;
-    } catch {
-      throw new UnauthorizedException('The officer token is invalid.');
-    }
-
-    if (
-      !header ||
-      typeof header !== 'object' ||
-      !claims ||
-      typeof claims !== 'object' ||
-      (header as { alg?: unknown }).alg !== 'HS256' ||
-      (header as { typ?: unknown }).typ !== 'JWT' ||
-      claims.iss !==
-        (this.config.get<string>('DOCUMENT_VERIFICATION_JWT_ISSUER') ??
-          'janaseva-ai-auth') ||
-      typeof claims.sub !== 'string' ||
-      !claims.sub ||
-      typeof claims.role !== 'string' ||
-      !roles.has(claims.role) ||
-      typeof claims.exp !== 'number' ||
-      claims.exp <= Math.floor(Date.now() / 1000)
-    ) {
-      throw new UnauthorizedException(
-        'The officer token is invalid or expired.',
-      );
-    }
-
-    const expected = createHmac('sha256', secret)
-      .update(`${encodedHeader}.${encodedClaims}`)
-      .digest();
-    let provided: Buffer;
-    try {
-      provided = Buffer.from(encodedSignature, 'base64url');
-    } catch {
-      throw new UnauthorizedException('The officer token is invalid.');
-    }
-    if (
-      provided.length !== expected.length ||
-      !timingSafeEqual(provided, expected)
-    ) {
-      throw new UnauthorizedException('The officer token is invalid.');
-    }
-
-    const officer = await this.prisma.user.findUnique({
-      where: { id: claims.sub },
-      select: { id: true, name: true, role: true, isActive: true },
-    });
-    if (!officer?.isActive || officer.role !== claims.role) {
-      throw new UnauthorizedException('The officer is not authorized.');
-    }
-    request.officer = {
-      id: officer.id,
-      role: officer.role,
-      name: officer.name,
-    };
-    return true;
+    throw new UnauthorizedException('An officer session is required.');
   }
 }
 

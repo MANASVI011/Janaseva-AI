@@ -24,7 +24,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db execute --file prisma/seed.sql",
-    "auth:issue-demo-token": "node scripts/issue-demo-token.mjs",
+    "preauth:provision-reviewer": "npm run build",
+    "auth:provision-reviewer": "node scripts/provision-reviewer.mjs",
+    "preauth:provision-local-demo": "npm run build",
+    "auth:provision-local-demo": "node scripts/provision-reviewer.mjs --local-demo",
     "prisma:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
@@ -34,7 +37,9 @@
     "@nestjs/platform-express": "^11.0.0",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "argon2": "^0.45.2",
     "dotenv": "^18.0.0",
+    "jose": "^6.2.17",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

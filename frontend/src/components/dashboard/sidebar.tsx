@@ -57,8 +57,22 @@ export function Sidebar({
   mobileOpen,
   onClose,
 }: SidebarProps) {
-  const { t } = useDashboard();
+  const { t, officer, language } = useDashboard();
   const pathname = usePathname();
+  const officerRoleLabel =
+    language === "kn"
+      ? {
+          CASEWORKER: "ಪ್ರಕರಣ ಕಾರ್ಯಕರ್ತ",
+          VA_RI: "ಗ್ರಾಮ ಲೆಕ್ಕಾಧಿಕಾರಿ / ಕಂದಾಯ ನಿರೀಕ್ಷಕ",
+          AUTHORIZED_OFFICER: "ಅಧಿಕೃತ ಪರಿಶೀಲನಾ ಅಧಿಕಾರಿ",
+          ADMIN: "ನಿರ್ವಾಹಕರು",
+        }[officer?.role ?? "CASEWORKER"]
+      : {
+          CASEWORKER: "Caseworker",
+          VA_RI: "Village Accountant / Revenue Inspector",
+          AUTHORIZED_OFFICER: "Authorized Officer",
+          ADMIN: "Administrator",
+        }[officer?.role ?? "CASEWORKER"];
 
   return (
     <>
@@ -171,14 +185,19 @@ export function Sidebar({
             }`}
           >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#dbe8f3] text-xs font-semibold text-[#213954]">
-              MG
+              {officer?.name
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0]?.toLocaleUpperCase())
+                .join("") ?? "AI"}
             </span>
             <span className={`min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
               <span className="block truncate text-xs font-semibold text-white">
-                Manasvi Gowda
+                {officer?.name}
               </span>
               <span className="mt-0.5 block text-[11px] text-slate-400">
-                {t.profile.designation}
+                {officerRoleLabel}
               </span>
             </span>
           </div>

@@ -6,7 +6,7 @@ NestJS REST API and Prisma setup for the Janaseva AI demonstration platform.
 
 ```bash
 npm install
-cp ../.env .env
+cp -n ../.env.example .env
 npm run prisma:generate
 ```
 
@@ -33,9 +33,27 @@ The readiness endpoint is `GET /health` on port `3002` by default, matching the 
 
 The API persists synthetic application records, document requirements, upload versions, verification status, missing-document requests, and activity history in PostgreSQL. Files are stored outside the public web root under `.private-documents` by default; set `DOCUMENT_STORAGE_PATH` to an appropriately restricted persistent directory for local use.
 
-In non-production environments, explicitly marked demo requests authenticate as the active seeded `demo-caseworker` when `DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED` is not set to `false`. The frontend enables this mode by default in `next dev` unless `NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH=false` is set. The mode cannot authenticate any request when `NODE_ENV=production`.
+Non-production requests can use the explicitly marked demo headers when
+`DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED` is not `false`; they are always
+rejected in production. Production login uses `AUTH_JWT_SECRET` (at least 32
+random bytes), `AUTH_JWT_ISSUER`, and the configured `FRONTEND_ORIGIN`.
+`POST /api/auth/login` sets an HttpOnly, SameSite=Lax session cookie. `GET
+/api/auth/session` returns the authenticated officer profile, and `POST
+/api/auth/logout` revokes the database session and clears its cookie. Session IDs
+are verified against PostgreSQL on protected requests. Login failure limits
+are stored in PostgreSQL for serverless-safe enforcement.
 
-Production routes require an active database officer and a valid HS256 bearer token. Set `DOCUMENT_VERIFICATION_JWT_SECRET` to at least 32 random bytes and configure its matching issuer. No production login page or trusted token issuer is included. For local setups that disable demo mode, `npm run auth:issue-demo-token` issues a 30-minute token for the seeded caseworker; never use this utility in production.
+Apply the new schema migration explicitly using the direct
+`DATABASE_URL_UNPOOLED` connection for production. It creates credential,
+session, and login-attempt tables but does not insert or update users. Then run
+`npm run auth:provision-reviewer` in an interactive terminal to attach an
+Argon2id credential to an existing active authorized officer. This command
+does not create users and is never run by the application or migration.
+It requires a password of at least 12 characters and refuses to overwrite an
+existing credential. For local testing only, `npm run auth:provision-local-demo`
+targets the existing `demo-authorized-officer` on a loopback database and
+requires an explicit `LOCAL DEMO` confirmation. That local-only command may
+use a short password; never use it with a production database.
 
 Uploads accept PDF, JPEG, and PNG files up to 10 MB. The seed contains synthetic applications and no document file content.
 

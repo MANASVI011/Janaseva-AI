@@ -15,6 +15,12 @@ import {
   createInitialApplicationCase,
   type ApplicationCase,
 } from "@/lib/demo-data";
+import {
+  getAuthSession,
+  loginOfficer,
+  logoutOfficer,
+  type AuthenticatedOfficer,
+} from "@/lib/auth-api";
 
 type DashboardContextValue = {
   language: Language;
@@ -27,8 +33,10 @@ type DashboardContextValue = {
     id: string,
     update: (applicationCase: ApplicationCase) => ApplicationCase,
   ) => void;
-  documentApiToken: string;
-  setDocumentApiToken: (token: string) => void;
+  authLoading: boolean;
+  officer: AuthenticatedOfficer | null;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -44,7 +52,8 @@ export function DashboardProvider({
 }) {
   const [language, setLanguageState] = useState(initialLanguage);
   const [search, setSearch] = useState("");
-  const [documentApiToken, setDocumentApiToken] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
+  const [officer, setOfficer] = useState<AuthenticatedOfficer | null>(null);
   const [cases, setCases] = useState<Record<string, ApplicationCase>>(() =>
     Object.fromEntries(
       applications.map((application) => [
@@ -62,6 +71,23 @@ export function DashboardProvider({
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    let active = true;
+    getAuthSession()
+      .then((session) => {
+        if (active) setOfficer(session.officer);
+      })
+      .catch(() => {
+        if (active) setOfficer(null);
+      })
+      .finally(() => {
+        if (active) setAuthLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (hasLanguageCookie) return;
@@ -98,6 +124,14 @@ export function DashboardProvider({
     },
     [],
   );
+  const login = useCallback(async (username: string, password: string) => {
+    const session = await loginOfficer(username, password);
+    setOfficer(session.officer);
+  }, []);
+  const logout = useCallback(async () => {
+    await logoutOfficer();
+    setOfficer(null);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -108,10 +142,22 @@ export function DashboardProvider({
       setSearch,
       cases,
       updateCase,
-      documentApiToken,
-      setDocumentApiToken,
+      authLoading,
+      officer,
+      login,
+      logout,
     }),
-    [cases, documentApiToken, language, search, setLanguage, updateCase],
+    [
+      authLoading,
+      cases,
+      language,
+      login,
+      logout,
+      officer,
+      search,
+      setLanguage,
+      updateCase,
+    ],
   );
 
   return (

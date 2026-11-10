@@ -100,6 +100,7 @@ describe('AiAnalysisService', () => {
           officerAttentionPoints: [],
           disclaimer:
             'AI-generated assistance is advisory only. The authorized officer must independently verify all findings and make the final decision.',
+          decision: 'APPROVED',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -107,7 +108,10 @@ describe('AiAnalysisService', () => {
     vi.stubGlobal('fetch', fetch);
     const { service, applicationFindUnique } = createService();
 
-    await service.analyzeApplication('SYNTHETIC-REF-001', 'en');
+    const analysis = await service.analyzeApplication(
+      'SYNTHETIC-REF-001',
+      'en',
+    );
 
     expect(applicationFindUnique).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,6 +132,7 @@ describe('AiAnalysisService', () => {
       documentType: 'INCOME_DECLARATION',
       verificationStatus: 'VERIFIED',
     });
+    expect(analysis).not.toHaveProperty('decision');
     expect(JSON.stringify(outgoing)).not.toContain('Synthetic Applicant');
     expect(JSON.stringify(outgoing)).not.toContain('14 Synthetic Road');
     expect(JSON.stringify(outgoing)).not.toContain('9876543210');

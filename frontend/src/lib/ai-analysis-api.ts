@@ -19,13 +19,8 @@ export type AiProviderStatus = {
   reason: string | null;
 };
 
-export function analyzeApplication(
-  token: string,
-  applicationId: string,
-  language: Language,
-) {
+export function analyzeApplication(applicationId: string, language: Language) {
   return requestOfficerApi<AiAnalysis>(
-    token,
     `/applications/${encodeURIComponent(applicationId)}/ai-analysis`,
     { method: "POST", body: JSON.stringify({ language }) },
     "json",
@@ -33,10 +28,9 @@ export function analyzeApplication(
   );
 }
 
-export function getAiProviderStatus(token: string, checkConnectivity = false) {
+export function getAiProviderStatus(checkConnectivity = false) {
   const query = checkConnectivity ? "?checkConnectivity=true" : "";
   return requestOfficerApi<AiProviderStatus>(
-    token,
     `/ai/provider-status${query}`,
     { cache: "no-store" },
     "json",

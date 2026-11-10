@@ -166,23 +166,15 @@ async function request<T>(
   options: {
     method?: string;
     body?: unknown;
-    token?: string;
     demoOfficerId?: string;
   } = {},
 ): Promise<T> {
   const headers = new Headers();
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
-  } else if (isDocumentDemoAuthEnabled()) {
+  if (isDocumentDemoAuthEnabled()) {
     headers.set("X-Janaseva-Demo-Auth", "enabled");
     if (options.demoOfficerId) {
       headers.set("X-Janaseva-Demo-Field-Officer", options.demoOfficerId);
     }
-  } else {
-    throw new FieldVerificationApiError(
-      "Officer authentication is required.",
-      401,
-    );
   }
   if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
@@ -195,6 +187,7 @@ async function request<T>(
     response = await fetch(`/api${path}`, {
       method: options.method ?? "GET",
       headers,
+      credentials: "same-origin",
       body:
         options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
@@ -244,56 +237,51 @@ async function request<T>(
   }
 }
 
-export function getFieldQueue(parameters: URLSearchParams, token?: string) {
+export function getFieldQueue(parameters: URLSearchParams) {
   return request<FieldQueueResponse>(
     `/field-verification?${parameters.toString()}`,
-    { token },
   );
 }
 
-export function getFieldApplication(applicationId: string, token?: string) {
+export function getFieldApplication(applicationId: string) {
   return request<FieldApplicationDetail>(
     `/applications/${encodeURIComponent(applicationId)}/field-verification`,
-    { token },
   );
 }
 
 export function assignFieldOfficer(
   applicationId: string,
   assignedOfficerId: string,
-  token?: string,
 ) {
   return request<FieldVerificationRecord>(
     `/applications/${encodeURIComponent(applicationId)}/field-verification/assign`,
-    { method: "POST", body: { assignedOfficerId }, token },
+    { method: "POST", body: { assignedOfficerId } },
   );
 }
 
 export function scheduleFieldVisit(
   applicationId: string,
   input: FieldScheduleInput,
-  token?: string,
 ) {
   return request<FieldVerificationRecord>(
     `/applications/${encodeURIComponent(applicationId)}/field-verification/schedule`,
-    { method: "POST", body: input, token },
+    { method: "POST", body: input },
   );
 }
 
 export function rescheduleFieldVisit(
   verificationId: string,
   input: FieldScheduleInput,
-  token?: string,
 ) {
   return request<FieldVerificationRecord>(
     `/field-verification/${encodeURIComponent(verificationId)}/schedule`,
-    { method: "PATCH", body: input, token },
+    { method: "PATCH", body: input },
   );
 }
 
 export function startFieldVisit(
   verificationId: string,
-  options: { token?: string; demoOfficerId?: string },
+  options: { demoOfficerId?: string } = {},
 ) {
   return request<FieldVerificationRecord>(
     `/field-verification/${encodeURIComponent(verificationId)}/start`,
@@ -304,7 +292,7 @@ export function startFieldVisit(
 export function saveFieldDraft(
   verificationId: string,
   input: Partial<FieldReportInput>,
-  options: { token?: string; demoOfficerId?: string },
+  options: { demoOfficerId?: string } = {},
 ) {
   return request<FieldVerificationRecord>(
     `/field-verification/${encodeURIComponent(verificationId)}/draft`,
@@ -315,7 +303,7 @@ export function saveFieldDraft(
 export function submitFieldReport(
   verificationId: string,
   input: FieldReportInput,
-  options: { token?: string; demoOfficerId?: string },
+  options: { demoOfficerId?: string } = {},
 ) {
   return request<FieldVerificationRecord>(
     `/field-verification/${encodeURIComponent(verificationId)}/submit`,
@@ -323,13 +311,10 @@ export function submitFieldReport(
   );
 }
 
-export function requestFieldAssistance(
-  input: {
-    observations: string;
-    checklist: FieldChecklistAnswer[];
-  },
-  token?: string,
-) {
+export function requestFieldAssistance(input: {
+  observations: string;
+  checklist: FieldChecklistAnswer[];
+}) {
   return request<{
     mode: "DEMONSTRATION";
     summary: string;
@@ -341,6 +326,5 @@ export function requestFieldAssistance(
   }>("/field-verification/assist", {
     method: "POST",
     body: input,
-    token,
   });
 }

@@ -174,14 +174,10 @@ export class DocumentApiError extends Error {
 const requestTimeoutMs = 15_000;
 const uploadTimeoutMs = 60_000;
 
-function getOfficerAuthHeaders(token: string, initial?: HeadersInit): Headers {
+function getOfficerAuthHeaders(initial?: HeadersInit): Headers {
   const headers = new Headers(initial);
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  } else if (isDocumentDemoAuthEnabled()) {
+  if (isDocumentDemoAuthEnabled()) {
     headers.set("X-Janaseva-Demo-Auth", "enabled");
-  } else {
-    throw new DocumentApiError("Officer authentication is required.", 401);
   }
   return headers;
 }
@@ -194,14 +190,13 @@ export function isDocumentDemoAuthEnabled() {
 }
 
 async function request<T>(
-  token: string,
   path: string,
   init: RequestInit = {},
   responseType: "json" | "blob" = "json",
   timeoutMs = requestTimeoutMs,
 ): Promise<T> {
   let response: Response;
-  const headers = getOfficerAuthHeaders(token, init.headers);
+  const headers = getOfficerAuthHeaders(init.headers);
   if (!(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -211,6 +206,7 @@ async function request<T>(
     response = await fetch(`/api${path}`, {
       ...init,
       headers,
+      credentials: "same-origin",
       signal: controller.signal,
     });
 
@@ -270,21 +266,16 @@ async function request<T>(
 }
 
 export function requestOfficerApi<T>(
-  token: string,
   path: string,
   init: RequestInit = {},
   responseType: "json" | "blob" = "json",
   timeoutMs = requestTimeoutMs,
 ) {
-  return request<T>(token, path, init, responseType, timeoutMs);
+  return request<T>(path, init, responseType, timeoutMs);
 }
 
-export function getVerificationQueue(
-  token: string,
-  parameters: URLSearchParams,
-) {
+export function getVerificationQueue(parameters: URLSearchParams) {
   return request<unknown>(
-    token,
     `/document-verification?${parameters.toString()}`,
   ).then((value) => {
     if (
@@ -310,15 +301,12 @@ export function getVerificationQueue(
   });
 }
 
-export function getVerificationOfficers(token: string) {
-  return request<VerificationOfficer[]>(
-    token,
-    "/document-verification/officers",
-  );
+export function getVerificationOfficers() {
+  return request<VerificationOfficer[]>("/document-verification/officers");
 }
 
-export function getApplications(token: string, parameters: URLSearchParams) {
-  return request<unknown>(token, `/applications?${parameters.toString()}`).then(
+export function getApplications(parameters: URLSearchParams) {
+  return request<unknown>(`/applications?${parameters.toString()}`).then(
     (value) => {
       if (
         typeof value !== "object" ||
@@ -341,9 +329,8 @@ export function getApplications(token: string, parameters: URLSearchParams) {
   );
 }
 
-export function getApplicationDocuments(token: string, applicationId: string) {
+export function getApplicationDocuments(applicationId: string) {
   return request<unknown>(
-    token,
     `/applications/${encodeURIComponent(applicationId)}/documents`,
   ).then((value) => {
     if (
@@ -363,9 +350,8 @@ export function getApplicationDocuments(token: string, applicationId: string) {
   });
 }
 
-export function getApplicationHistory(token: string, applicationId: string) {
+export function getApplicationHistory(applicationId: string) {
   return request<unknown>(
-    token,
     `/applications/${encodeURIComponent(applicationId)}/document-history`,
   ).then((value) => {
     if (!Array.isArray(value)) {
@@ -376,7 +362,6 @@ export function getApplicationHistory(token: string, applicationId: string) {
 }
 
 export function uploadApplicationDocument(
-  token: string,
   applicationId: string,
   file: File,
   category: DocumentCategory,
@@ -396,7 +381,7 @@ export function uploadApplicationDocument(
     );
     let headers: Headers;
     try {
-      headers = getOfficerAuthHeaders(token);
+      headers = getOfficerAuthHeaders();
     } catch (cause) {
       reject(cause);
       return;
@@ -443,13 +428,8 @@ export function uploadApplicationDocument(
   });
 }
 
-export function verifyDocument(
-  token: string,
-  documentId: string,
-  remarks?: string,
-) {
+export function verifyDocument(documentId: string, remarks?: string) {
   return request<VerifyDocumentResult>(
-    token,
     `/documents/${encodeURIComponent(documentId)}/verify`,
     {
       method: "POST",
@@ -459,56 +439,45 @@ export function verifyDocument(
 }
 
 export function rejectDocument(
-  token: string,
   documentId: string,
   reason: string,
   remarks?: string,
 ) {
-  return request(token, `/documents/${encodeURIComponent(documentId)}/reject`, {
+  return request(`/documents/${encodeURIComponent(documentId)}/reject`, {
     method: "POST",
     body: JSON.stringify({ reason, remarks }),
   });
 }
 
 export function requestDocumentReplacement(
-  token: string,
   documentId: string,
   reason: string,
   details?: string,
 ) {
   return request(
-    token,
     `/documents/${encodeURIComponent(documentId)}/request-replacement`,
     { method: "POST", body: JSON.stringify({ reason, details }) },
   );
 }
 
 export function requestMissingDocuments(
-  token: string,
   applicationId: string,
   documents: { category: DocumentCategory; label?: string; reason: string }[],
 ) {
   return request(
-    token,
     `/applications/${encodeURIComponent(applicationId)}/request-missing-documents`,
     { method: "POST", body: JSON.stringify({ documents }) },
   );
 }
 
-export function markDocumentRequired(
-  token: string,
-  documentId: string,
-  reason: string,
-) {
-  return request(
-    token,
-    `/documents/${encodeURIComponent(documentId)}/required`,
-    { method: "PATCH", body: JSON.stringify({ required: true, reason }) },
-  );
+export function markDocumentRequired(documentId: string, reason: string) {
+  return request(`/documents/${encodeURIComponent(documentId)}/required`, {
+    method: "PATCH",
+    body: JSON.stringify({ required: true, reason }),
+  });
 }
 
 export async function fetchDocumentBlob(
-  token: string,
   documentId: string,
   versionId?: string,
   download = false,
@@ -517,19 +486,19 @@ export async function fetchDocumentBlob(
   if (versionId) query.set("version", versionId);
   if (download) query.set("download", "1");
   return requestBlob(
-    token,
     `/documents/${encodeURIComponent(documentId)}/preview?${query.toString()}`,
   );
 }
 
-async function requestBlob(token: string, path: string) {
+async function requestBlob(path: string) {
   let response: Response;
-  const headers = getOfficerAuthHeaders(token);
+  const headers = getOfficerAuthHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), uploadTimeoutMs);
   try {
     response = await fetch(`/api${path}`, {
       headers,
+      credentials: "same-origin",
       signal: controller.signal,
     });
     if (!response.ok) {

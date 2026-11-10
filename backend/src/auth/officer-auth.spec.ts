@@ -1,40 +1,44 @@
 import {
   ExecutionContext,
-  ServiceUnavailableException,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { OfficerRole } from '../generated/prisma/enums.js';
-import { OfficerJwtGuard } from './officer-auth.js';
-
-const secret = 'local-test-secret-with-at-least-thirty-two-bytes';
-const issuer = 'janaseva-ai-auth';
-
-function token(claims: Record<string, unknown>, signingSecret = secret) {
-  const header = Buffer.from(
-    JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
-  ).toString('base64url');
-  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
-  const signature = createHmac('sha256', signingSecret)
-    .update(`${header}.${payload}`)
-    .digest('base64url');
-  return `${header}.${payload}.${signature}`;
-}
+import { OfficerJwtGuard, OfficerRolesGuard } from './officer-auth.js';
+import {
+  AuthOriginGuard,
+  getCookieValue,
+  getSessionCookieOptions,
+} from './auth-security.js';
 
 function context(
-  authorization?: string,
-  demoAuth?: string,
-  demoReviewOfficer?: string,
+  options: {
+    method?: string;
+    cookie?: string;
+    authorization?: string;
+    demoAuth?: string;
+    demoFieldOfficer?: string;
+    demoReviewOfficer?: string;
+    origin?: string;
+  } = {},
 ) {
   const request = {
+    method: options.method ?? 'GET',
     headers: {
-      authorization,
-      ...(demoAuth ? { 'x-janaseva-demo-auth': demoAuth } : {}),
-      ...(demoReviewOfficer
-        ? { 'x-janaseva-demo-review-officer': demoReviewOfficer }
+      ...(options.cookie ? { cookie: options.cookie } : {}),
+      ...(options.authorization
+        ? { authorization: options.authorization }
         : {}),
+      ...(options.demoAuth ? { 'x-janaseva-demo-auth': options.demoAuth } : {}),
+      ...(options.demoFieldOfficer
+        ? { 'x-janaseva-demo-field-officer': options.demoFieldOfficer }
+        : {}),
+      ...(options.demoReviewOfficer
+        ? { 'x-janaseva-demo-review-officer': options.demoReviewOfficer }
+        : {}),
+      ...(options.origin ? { origin: options.origin } : {}),
     },
   };
   return {
@@ -47,16 +51,8 @@ function context(
   };
 }
 
-let contextValue: ReturnType<typeof context>;
-
-function createGuard(
-  secretValue = secret,
-  nodeEnv?: string,
-  demoEnabled?: string,
-) {
+function createGuard(nodeEnv = 'production', demoEnabled = 'true') {
   const config = new ConfigService({
-    DOCUMENT_VERIFICATION_JWT_SECRET: secretValue,
-    DOCUMENT_VERIFICATION_JWT_ISSUER: issuer,
     NODE_ENV: nodeEnv,
     DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED: demoEnabled,
   });
@@ -70,152 +66,189 @@ function createGuard(
       }),
     },
   };
-  return { guard: new OfficerJwtGuard(config, prisma as never), prisma };
-}
-
-function validClaims() {
+  const auth = {
+    verifySession: vi.fn().mockResolvedValue({
+      id: 'officer-1',
+      name: 'Authorized Officer',
+      role: OfficerRole.AUTHORIZED_OFFICER,
+      expiresAt: new Date(Date.now() + 60_000),
+    }),
+  };
   return {
-    sub: 'demo-caseworker',
-    role: OfficerRole.CASEWORKER,
-    iss: issuer,
-    exp: Math.floor(Date.now() / 1000) + 60,
+    guard: new OfficerJwtGuard(config, prisma as never, auth as never),
+    prisma,
+    auth,
   };
 }
 
 describe('OfficerJwtGuard', () => {
-  it('accepts a signed, unexpired token for an active matching officer', async () => {
-    const requestContext = context(`Bearer ${token(validClaims())}`);
-    contextValue = requestContext;
+  it('authenticates a valid httpOnly session cookie and uses its database identity', async () => {
+    const requestContext = context({ cookie: 'janaseva_session=signed-token' });
+    const { guard, auth } = createGuard();
+    await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
+      true,
+    );
+    expect(auth.verifySession).toHaveBeenCalledWith('signed-token');
+    expect(requestContext.request).toHaveProperty('officer', {
+      id: 'officer-1',
+      name: 'Authorized Officer',
+      role: OfficerRole.AUTHORIZED_OFFICER,
+    });
+  });
+
+  it('prefers a valid session cookie over local demo headers', async () => {
+    const requestContext = context({
+      cookie: 'janaseva_session=signed-token',
+      demoAuth: 'enabled',
+      demoFieldOfficer: 'demo-caseworker',
+    });
+    const { guard, auth, prisma } = createGuard('development', 'true');
+    await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
+      true,
+    );
+    expect(auth.verifySession).toHaveBeenCalledWith('signed-token');
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(requestContext.request).toHaveProperty('officer', {
+      id: 'officer-1',
+      name: 'Authorized Officer',
+      role: OfficerRole.AUTHORIZED_OFFICER,
+    });
+  });
+
+  it('supports registered bearer sessions for non-browser clients', async () => {
+    const requestContext = context({
+      authorization: 'Bearer signed-token',
+    });
+    const { guard, auth } = createGuard();
+    await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
+      true,
+    );
+    expect(auth.verifySession).toHaveBeenCalledWith('signed-token');
+  });
+
+  it('rejects unauthenticated production requests even when demo headers are set', async () => {
+    const requestContext = context({ demoAuth: 'enabled' });
     const { guard, prisma } = createGuard();
-
-    await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
-      true,
-    );
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { id: 'demo-caseworker' },
-      select: { id: true, name: true, role: true, isActive: true },
-    });
-    expect(requestContext.request).toHaveProperty('officer', {
-      id: 'demo-caseworker',
-      name: 'Demo Officer',
-      role: OfficerRole.CASEWORKER,
-    });
-  });
-
-  it('rejects invalid signatures and expired tokens', async () => {
-    const invalidSignature = token(validClaims(), `${secret}-wrong`);
-    const expired = token({
-      ...validClaims(),
-      exp: Math.floor(Date.now() / 1000) - 1,
-    });
-    const { guard } = createGuard();
-
-    contextValue = context(`Bearer ${invalidSignature}`);
     await expect(
-      guard.canActivate(contextValue.execution),
+      guard.canActivate(requestContext.execution),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    contextValue = context(`Bearer ${expired}`);
-    await expect(
-      guard.canActivate(contextValue.execution),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it('fails closed when the signing secret is missing or too short', async () => {
-    const { guard } = createGuard('short');
-    contextValue = context(`Bearer ${token(validClaims())}`);
-    await expect(
-      guard.canActivate(contextValue.execution),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
-  });
-
-  it('authenticates the seeded caseworker in explicitly marked demo mode without a JWT', async () => {
-    const requestContext = context(undefined, 'enabled');
-    contextValue = requestContext;
-    const { guard, prisma } = createGuard('', 'development', 'true');
-
+  it('allows the configured local caseworker demo only outside production', async () => {
+    const requestContext = context({ demoAuth: 'enabled' });
+    const { guard, prisma } = createGuard('development', 'true');
     await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
       true,
     );
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { id: 'demo-caseworker' },
-      select: { id: true, name: true, role: true, isActive: true },
-    });
+    expect(prisma.user.findUnique).toHaveBeenCalled();
   });
 
-  it('accepts a selected active authorised officer only in demo mode', async () => {
-    const requestContext = context(
-      undefined,
-      'enabled',
-      'demo-authorized-officer',
-    );
-    contextValue = requestContext;
-    const { guard, prisma } = createGuard('', 'development', 'true');
-    prisma.user.findUnique.mockResolvedValue({
-      id: 'demo-authorized-officer',
-      name: 'Synthetic Demonstration Authorised Officer',
-      role: OfficerRole.AUTHORIZED_OFFICER,
-      isActive: true,
+  it('rejects a selected inactive field officer', async () => {
+    const requestContext = context({
+      demoAuth: 'enabled',
+      demoFieldOfficer: 'inactive-officer',
     });
-
-    await expect(guard.canActivate(requestContext.execution)).resolves.toBe(
-      true,
-    );
-    expect(requestContext.request).toHaveProperty('officer', {
-      id: 'demo-authorized-officer',
-      name: 'Synthetic Demonstration Authorised Officer',
-      role: OfficerRole.AUTHORIZED_OFFICER,
-    });
-  });
-
-  it('rejects a selected demonstration reviewer without a reviewing role', async () => {
-    const requestContext = context(undefined, 'enabled', 'demo-va-ri-sagara');
-    contextValue = requestContext;
-    const { guard, prisma } = createGuard('', 'development', 'true');
+    const { guard, prisma } = createGuard('development', 'true');
     prisma.user.findUnique.mockResolvedValue({
-      id: 'demo-va-ri-sagara',
-      name: 'Synthetic VA / RI',
+      id: 'inactive-officer',
+      name: 'Inactive officer',
       role: OfficerRole.VA_RI,
-      isActive: true,
-    });
-
-    await expect(
-      guard.canActivate(requestContext.execution),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it('never accepts demo authentication in production', async () => {
-    const requestContext = context(undefined, 'enabled');
-    contextValue = requestContext;
-    const { guard } = createGuard(secret, 'production', 'true');
-
-    await expect(
-      guard.canActivate(requestContext.execution),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it('does not use demo authentication when the mode is disabled', async () => {
-    const requestContext = context(undefined, 'enabled');
-    contextValue = requestContext;
-    const { guard } = createGuard(secret, 'development', 'false');
-
-    await expect(
-      guard.canActivate(requestContext.execution),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it('rejects inactive or role-mismatched database officers', async () => {
-    const requestContext = context(`Bearer ${token(validClaims())}`);
-    contextValue = requestContext;
-    const { guard, prisma } = createGuard();
-    prisma.user.findUnique.mockResolvedValue({
-      id: 'demo-caseworker',
-      name: 'Demo Officer',
-      role: OfficerRole.CASEWORKER,
       isActive: false,
     });
+    await expect(
+      guard.canActivate(requestContext.execution),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});
 
-    await expect(guard.canActivate(requestContext.execution)).rejects.toThrow(
-      UnauthorizedException,
+describe('AuthOriginGuard', () => {
+  const guard = new AuthOriginGuard(
+    new ConfigService({
+      NODE_ENV: 'production',
+      FRONTEND_ORIGIN: 'https://janaseva.example',
+    }),
+  );
+
+  it('allows a state-changing request from the configured application origin', () => {
+    expect(
+      guard.canActivate(
+        context({
+          method: 'POST',
+          origin: 'https://janaseva.example',
+        }).execution,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects missing and untrusted origins for state-changing requests', () => {
+    expect(() =>
+      guard.canActivate(context({ method: 'POST' }).execution),
+    ).toThrow(ForbiddenException);
+    expect(() =>
+      guard.canActivate(
+        context({ method: 'POST', origin: 'https://attacker.example' })
+          .execution,
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('does not require an Origin header for safe requests', () => {
+    expect(guard.canActivate(context({ method: 'GET' }).execution)).toBe(true);
+  });
+});
+
+describe('session cookie helpers', () => {
+  it('extracts the session cookie without decoding or logging it', () => {
+    expect(
+      getCookieValue(
+        {
+          headers: { cookie: 'other=value; janaseva_session=opaque' },
+        } as never,
+        'janaseva_session',
+      ),
+    ).toBe('opaque');
+  });
+
+  it('sets Secure only in production while always using HttpOnly and SameSite=Lax', () => {
+    expect(getSessionCookieOptions(true)).toEqual({
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+    expect(getSessionCookieOptions(false)).toEqual({
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+  });
+});
+
+describe('OfficerRolesGuard', () => {
+  it('denies caseworkers access to authorized-officer actions', () => {
+    const guard = new OfficerRolesGuard({
+      getAllAndOverride: () => [
+        OfficerRole.AUTHORIZED_OFFICER,
+        OfficerRole.ADMIN,
+      ],
+    } as never);
+    const execution = {
+      getHandler: () => undefined,
+      getClass: () => undefined,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          officer: {
+            id: 'caseworker-1',
+            name: 'Caseworker',
+            role: OfficerRole.CASEWORKER,
+          },
+        }),
+      }),
+    };
+    expect(() => guard.canActivate(execution as never)).toThrow(
+      ForbiddenException,
     );
   });
 });

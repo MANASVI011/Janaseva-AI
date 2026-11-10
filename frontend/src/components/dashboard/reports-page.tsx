@@ -44,7 +44,7 @@ const workflowStages = [
 ];
 
 export function ReportsPage() {
-  const { language, documentApiToken, t } = useDashboard();
+  const { language, t } = useDashboard();
   const words = getOperationsWords(language);
   const [filters, setFilters] = useState<OperationsFilters>(emptyFilters);
   const [appliedFilters, setAppliedFilters] =
@@ -58,7 +58,7 @@ export function ReportsPage() {
 
   useEffect(() => {
     let active = true;
-    getDashboardReport(documentApiToken, appliedFilters, page, 10)
+    getDashboardReport(appliedFilters, page, 10)
       .then((result) => {
         if (active) {
           setReport(result);
@@ -74,7 +74,7 @@ export function ReportsPage() {
     return () => {
       active = false;
     };
-  }, [appliedFilters, documentApiToken, page, reload, words.loadError]);
+  }, [appliedFilters, page, reload, words.loadError]);
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -104,7 +104,7 @@ export function ReportsPage() {
     setExporting(true);
     setError("");
     try {
-      const file = await downloadReportCsv(documentApiToken, appliedFilters);
+      const file = await downloadReportCsv(appliedFilters);
       downloadBlob(file, "janaseva-reports.csv");
     } catch (cause) {
       setError(getOperationsErrorMessage(cause, words.loadError));

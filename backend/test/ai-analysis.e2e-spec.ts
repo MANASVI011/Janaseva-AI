@@ -102,9 +102,9 @@ describe('AI analysis API (e2e)', () => {
   });
 
   it('requires an authenticated officer', async () => {
-    const response = await request(app.getHttpServer()).post(
-      `/api/applications/${record.id}/ai-analysis`,
-    );
+    const response = await request(app.getHttpServer())
+      .post(`/api/applications/${record.id}/ai-analysis`)
+      .set('Origin', 'http://localhost:3001');
 
     expect([401, 503]).toContain(response.status);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -114,6 +114,7 @@ describe('AI analysis API (e2e)', () => {
     const response = await request(app.getHttpServer())
       .post('/api/applications/NOT-FOUND/ai-analysis')
       .send({ language: 'en' })
+      .set('Origin', 'http://localhost:3001')
       .set('X-Janaseva-Demo-Auth', 'enabled');
 
     expect(response.status).toBe(404);
@@ -124,6 +125,7 @@ describe('AI analysis API (e2e)', () => {
     const response = await request(app.getHttpServer())
       .post(`/api/applications/${record.id}/ai-analysis`)
       .send({ language: 'en' })
+      .set('Origin', 'http://localhost:3001')
       .set('X-Janaseva-Demo-Auth', 'enabled');
 
     expect(response.status).toBe(201);

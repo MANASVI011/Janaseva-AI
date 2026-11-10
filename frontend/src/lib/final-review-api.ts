@@ -129,27 +129,21 @@ export type FinalDecisionResult = {
   };
 };
 
-export function getFinalReviewQueue(token: string, search: string) {
+export function getFinalReviewQueue(search: string) {
   const parameters = new URLSearchParams({ page: "1", pageSize: "100" });
   if (search.trim()) parameters.set("search", search.trim());
   return requestOfficerApi<FinalReviewQueue>(
-    token,
     `/final-review?${parameters.toString()}`,
   );
 }
 
-export function getFinalReviewApplication(
-  token: string,
-  applicationId: string,
-) {
+export function getFinalReviewApplication(applicationId: string) {
   return requestOfficerApi<FinalReviewApplication>(
-    token,
     `/applications/${encodeURIComponent(applicationId)}/final-review`,
   );
 }
 
 export function submitFinalDecision(
-  token: string,
   applicationId: string,
   decision: FinalDecision,
   remarks: string,
@@ -160,7 +154,6 @@ export function submitFinalDecision(
     headers.set("X-Janaseva-Demo-Review-Officer", demoReviewerId);
   }
   return requestOfficerApi<FinalDecisionResult>(
-    token,
     `/applications/${encodeURIComponent(applicationId)}/final-review/decision`,
     {
       method: "POST",

@@ -112,6 +112,7 @@ export const messages = {
       account: "ನನ್ನ ಖಾತೆ",
       settings: "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
       signOut: "ಸೈನ್ ಔಟ್",
+      signOutError: "ಸೈನ್ ಔಟ್ ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
     },
     detail: {
       title: "ಅರ್ಜಿ ವಿವರಗಳು",
@@ -310,7 +311,7 @@ export const messages = {
       loading: "ದಾಖಲೆ ಪರಿಶೀಲನಾ ಸರದಿಯನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...",
       authTitle: "ಅಧಿಕಾರಿ ದೃಢೀಕರಣ ಅಗತ್ಯ",
       authDescription:
-        "ಈ ದಾಖಲೆ ಕಾರ್ಯಸ್ಥಳಕ್ಕೆ ಅಧಿಕೃತ ಸೇವೆಯಿಂದ ಸಹಿ ಮಾಡಿದ ಅಧಿಕಾರಿ ಟೋಕನ್ ಅಗತ್ಯವಿದೆ. ಪ್ರಸ್ತುತ ಈ ಯೋಜನೆಯಲ್ಲಿ ಲಾಗಿನ್ ಅಥವಾ ಗುರುತು ಒದಗಿಸುವವರು ಹೊಂದಿಸಲಾಗಿಲ್ಲ.",
+        "ದಾಖಲೆ ಕಾರ್ಯಸ್ಥಳವನ್ನು ಬಳಸಲು ದಯವಿಟ್ಟು ಅಧಿಕೃತ ಅಧಿಕಾರಿ ಖಾತೆಯಿಂದ ಲಾಗಿನ್ ಮಾಡಿ.",
       demoOfficerNote:
         "ಪ್ರದರ್ಶನ ಮೋಡ್‌ನಲ್ಲಿ ನೀವು ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿರುವ ಮಾನಸ್ವಿ ಗೌಡ ಅವರ ಅಧಿಕಾರಿ ಖಾತೆಯಾಗಿ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿದ್ದೀರಿ. ಎಲ್ಲಾ ಕ್ರಮಗಳು ದಾಖಲೆಯಾಗುತ್ತವೆ.",
       authTokenLabel: "ಅಧಿಕಾರಿ ಪ್ರವೇಶ ಟೋಕನ್",
@@ -324,7 +325,7 @@ export const messages = {
         "ದಾಖಲೆ ಸೇವೆಯು ಸಮಯಕ್ಕೆ ಪ್ರತಿಕ್ರಿಯಿಸಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
       invalidResponse: "ದಾಖಲೆ ಸೇವೆಯಿಂದ ಮಾನ್ಯವಲ್ಲದ ಪ್ರತಿಕ್ರಿಯೆ ಬಂದಿದೆ.",
       invalidToken:
-        "ಟೋಕನ್ ತಿರಸ್ಕರಿಸಲಾಗಿದೆ ಅಥವಾ ಅವಧಿ ಮುಗಿದಿದೆ. ಅಧಿಕೃತ ಸೇವೆಯಿಂದ ಹೊಸ ಟೋಕನ್ ಪಡೆಯಿರಿ.",
+        "ನಿಮ್ಮ ಅಧಿವೇಶನ ಅಮಾನ್ಯವಾಗಿದೆ ಅಥವಾ ಅವಧಿ ಮುಗಿದಿದೆ. ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ.",
       roleDenied: "ನಿಮ್ಮ ಅಧಿಕಾರಿ ಪಾತ್ರಕ್ಕೆ ಈ ದಾಖಲೆ ಕಾರ್ಯ ಅನುಮತಿಯಿಲ್ಲ.",
       setupRequired:
         "ದಾಖಲೆ ಸೇವೆಯಲ್ಲಿ ಡೇಟಾಬೇಸ್ ಮತ್ತು ಅಧಿಕಾರಿ ದೃಢೀಕರಣವನ್ನು ಹೊಂದಿಸಬೇಕು.",
@@ -556,6 +557,7 @@ export const messages = {
       account: "My account",
       settings: "Settings",
       signOut: "Sign out",
+      signOutError: "Could not sign out. Please try again.",
     },
     detail: {
       title: "Application details",
@@ -757,7 +759,7 @@ export const messages = {
       loading: "Loading the document verification queue...",
       authTitle: "Officer authentication required",
       authDescription:
-        "This document workspace requires an officer token signed by a trusted service. No sign-in or identity provider is configured in this project yet.",
+        "Please sign in with an authorized officer account to use the document workspace.",
       demoOfficerNote:
         "Demo mode is using the seeded officer account for Manasvi Gowda. Actions are recorded in the database.",
       authTokenLabel: "Officer access token",
@@ -770,8 +772,7 @@ export const messages = {
       requestTimedOut:
         "The document service did not respond in time. Please try again.",
       invalidResponse: "The document service returned an invalid response.",
-      invalidToken:
-        "The token was rejected or expired. Request a new token from the trusted service.",
+      invalidToken: "Your session is invalid or expired. Please sign in again.",
       roleDenied:
         "Your officer role is not permitted to perform this document action.",
       setupRequired:

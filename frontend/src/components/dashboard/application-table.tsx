@@ -58,7 +58,7 @@ export function ApplicationTable({
   initialStatus = "all",
   attentionOnly = false,
 }: Props) {
-  const { language, t, search, documentApiToken } = useDashboard();
+  const { language, t, search } = useDashboard();
   const fieldCopy = getFieldVerificationCopy(language);
   const [stage, setStage] = useState<StageFilter>(() =>
     initialStage(initialStatus),
@@ -101,7 +101,7 @@ export function ApplicationTable({
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      getApplications(documentApiToken, query)
+      getApplications(query)
         .then((response) => {
           if (active) setResult(response);
         })
@@ -123,7 +123,7 @@ export function ApplicationTable({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [documentApiToken, language, query]);
+  }, [language, query]);
 
   function changeSort(nextKey: SortKey) {
     setPage(1);

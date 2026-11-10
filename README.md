@@ -147,31 +147,41 @@ details.
 Never commit `.env` files or put secrets in frontend variables. The checked-in
 templates use placeholders. The root `.gitignore` ignores `.env` files.
 
-| Variable                                            | Service            | Purpose                                                                                                 |
-| --------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Docker Compose     | Local PostgreSQL initialization; use local-only credentials.                                            |
-| `DATABASE_URL`                                      | Prisma/NestJS      | PostgreSQL connection. Encode reserved URL characters in passwords.                                     |
-| `PORT`                                              | NestJS             | HTTP port; defaults to `3002` in local instructions.                                                    |
-| `FRONTEND_ORIGIN`                                   | NestJS             | Allowed browser CORS origin; local value is `http://localhost:3001`.                                    |
+| Variable                                            | Service            | Purpose                                                                                                  |
+| --------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Docker Compose     | Local PostgreSQL initialization; use local-only credentials.                                             |
+| `DATABASE_URL`                                      | Prisma/NestJS      | Application runtime connection (pooled on Neon); local backend reads it from `backend/.env`.             |
+| `DATABASE_URL_UNPOOLED`                             | Prisma CLI         | Direct connection for production Prisma migrations; never use it for application runtime traffic.        |
+| `PORT`                                              | NestJS             | HTTP port; defaults to `3002` in local instructions.                                                     |
+| `FRONTEND_ORIGIN`                                   | NestJS             | Allowed browser CORS origin; local value is `http://localhost:3001`.                                     |
 | `AI_SERVICE_URL`                                    | NestJS             | FastAPI base URL; locally `http://127.0.0.1:8000`, injected by the Vercel service binding when deployed. |
-| `AI_SERVICE_TOKEN`                                  | NestJS and FastAPI | Shared internal service credential. Generate a separate random value; do not reuse the Groq key.        |
-| `DOCUMENT_VERIFICATION_JWT_SECRET`                  | NestJS             | At least 32 bytes, used to validate officer HS256 tokens when demo authentication is disabled.          |
-| `DOCUMENT_VERIFICATION_JWT_ISSUER`                  | NestJS             | Expected officer JWT issuer; local template uses `janaseva-ai-auth`.                                    |
-| `DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED`           | NestJS             | Local demo-header auth control. Must be disabled in production.                                         |
-| `DOCUMENT_STORAGE_PATH`                             | NestJS             | Private local document directory; defaults to `.private-documents` under the backend working directory. |
-| `NEXT_PUBLIC_API_BASE_URL`                          | Next.js            | Optional local Next.js proxy destination; browser requests use same-origin `/api` paths.                |
-| `NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH`       | Next.js            | Enables the development demo header; set to `false` when using a token.                                 |
-| `AI_PROVIDER`                                       | FastAPI            | Active provider; currently `groq`.                                                                      |
-| `GROQ_API_KEY`                                      | FastAPI            | Secret Groq API key. Keep server-side only.                                                             |
-| `GROQ_MODEL`                                        | FastAPI            | Current model is `qwen/qwen3.8-27b`.                                                                    |
-| `GROQ_API_BASE_URL`                                 | FastAPI            | OpenAI-compatible API URL; defaults to `https://api.groq.com/openai/v1`.                                |
+| `AI_SERVICE_TOKEN`                                  | NestJS and FastAPI | Shared internal service credential. Generate a separate random value; do not reuse the Groq key.         |
+| `AUTH_JWT_SECRET`                                   | NestJS             | At least 32 random bytes; signs short-lived server-side officer sessions.                                |
+| `AUTH_JWT_ISSUER`                                   | NestJS             | JWT issuer; defaults to `janaseva-ai-auth`.                                                              |
+| `DOCUMENT_VERIFICATION_DEMO_AUTH_ENABLED`           | NestJS             | Local demo-header auth control. Must be disabled in production.                                          |
+| `DOCUMENT_STORAGE_PATH`                             | NestJS             | Private local document directory; defaults to `.private-documents` under the backend working directory.  |
+| `NEXT_PUBLIC_API_BASE_URL`                          | Next.js            | Optional local Next.js proxy destination; browser requests use same-origin `/api` paths.                 |
+| `NEXT_PUBLIC_DOCUMENT_VERIFICATION_DEMO_AUTH`       | Next.js            | Enables the development demo header; set to `false` when using a token.                                  |
+| `AI_PROVIDER`                                       | FastAPI            | Active provider; currently `groq`.                                                                       |
+| `GROQ_API_KEY`                                      | FastAPI            | Secret Groq API key. Keep server-side only.                                                              |
+| `GROQ_MODEL`                                        | FastAPI            | Current model is `qwen/qwen3.8-27b`.                                                                     |
+| `GROQ_API_BASE_URL`                                 | FastAPI            | OpenAI-compatible API URL; defaults to `https://api.groq.com/openai/v1`.                                 |
 
-The root `.env.example` is used by Compose and can be copied to `backend/.env`
-for local NestJS/Prisma configuration. Create `ai-service/.env` from
+The root `.env.example` contains local-only placeholders. The backend reads
+`backend/.env` outside production; production ignores dotenv files and uses the
+hosting platform's injected environment. Existing process variables take
+precedence over dotenv values. Do not copy the root `.env` into `backend/.env`:
+the root file may contain Neon production URLs. Create `ai-service/.env` from
 `ai-service/.env.example`. Next.js reads its own environment; if overriding
 defaults, place only the two `NEXT_PUBLIC_*` settings in
 `frontend/.env.local`. Do not copy database credentials or private tokens into
 frontend configuration.
+
+PrismaService uses `DATABASE_URL` at runtime. For production migrations, set
+`DATABASE_URL_UNPOOLED` in the migration environment; `prisma migrate` uses
+that direct URL and fails safely if it is missing in production. Local Prisma
+migrations use `DATABASE_URL` unless a local `DATABASE_URL_UNPOOLED` is set.
+Prisma generation and non-migration CLI commands use `DATABASE_URL`.
 
 ## Local setup
 
@@ -180,15 +190,15 @@ frontend configuration.
 From the repository root:
 
 ```bash
-cp -n .env.example .env
+docker compose --env-file .env.example up -d postgres
 ```
 
-Edit `.env` locally, then copy its database/backend settings without
-overwriting an existing backend configuration:
+Create the backend's local environment file from the placeholder template if
+one does not already exist. Keep its local database settings aligned with the
+Compose values:
 
 ```bash
-cp -n .env backend/.env
-docker compose up -d postgres
+cp -n .env.example backend/.env
 ```
 
 The Compose service exposes PostgreSQL on `localhost:5432` and persists data
@@ -265,11 +275,35 @@ normal demo identity is a caseworker; Final Review provides a reviewer/admin
 selection for its demo decision actions. The caseworker cannot submit a final
 decision.
 
-There is no production login UI or trusted token issuer in this repository.
-Production routes require a valid HS256 bearer token for an active database
-officer, with the configured issuer and secret. The local
-`npm run auth:issue-demo-token` command creates a short-lived development
-caseworker token; it is not a production issuer.
+Officers sign in at `/login` with provisioned credentials. NestJS verifies
+Argon2id password hashes and stores revocable session IDs in PostgreSQL. The
+signed eight-hour session is delivered only in an HttpOnly, SameSite=Lax
+cookie (Secure in production); API handlers re-check the session and current
+officer status and role. Login attempts are limited using a PostgreSQL-backed
+15-minute window. State-changing requests require the configured
+`FRONTEND_ORIGIN`; configure it to the exact production app origin. Demo-header
+authentication remains available only for local development and is always
+rejected in production.
+
+After applying the authentication migration, provision the reviewer
+interactively against an existing active `AUTHORIZED_OFFICER` user:
+
+```bash
+cd backend
+npm run auth:provision-reviewer
+```
+
+The command requests the officer ID and username, then prompts for the new
+password without echoing it. It does not create users or run automatically.
+Keep `AUTH_JWT_SECRET` and database credentials in the hosting platform's
+server-side environment settings. AI analysis remains advisory; final decisions
+are available only to `AUTHORIZED_OFFICER` and `ADMIN` officers.
+
+For isolated local testing only, `npm run auth:provision-local-demo` targets
+the existing local `demo-authorized-officer` record and requires a loopback
+database plus an explicit confirmation. It accepts a short password for this
+local-only flow; the production provisioning command continues to require at
+least 12 characters. Never use a local demo password in production.
 
 ## AI application analysis
 
@@ -516,4 +550,5 @@ private object storage and scanning, explicit workflow-policy review, real
 database integration tests, browser automation, operational observability,
 and measurement of the proposed workflow metrics. These are not current
 features.
+
 # Janaseva-AI

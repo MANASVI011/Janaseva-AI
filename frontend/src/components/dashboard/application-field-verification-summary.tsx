@@ -20,7 +20,7 @@ export function ApplicationFieldVerificationSummary({
     documentsVerified: boolean;
   }) => void;
 }) {
-  const { language, documentApiToken } = useDashboard();
+  const { language } = useDashboard();
   const copy = getFieldVerificationCopy(language);
   const [detail, setDetail] = useState<Awaited<
     ReturnType<typeof getFieldApplication>
@@ -29,7 +29,7 @@ export function ApplicationFieldVerificationSummary({
 
   useEffect(() => {
     let active = true;
-    getFieldApplication(applicationId, documentApiToken)
+    getFieldApplication(applicationId)
       .then((result) => {
         if (active) {
           setDetail(result);
@@ -49,12 +49,7 @@ export function ApplicationFieldVerificationSummary({
     return () => {
       active = false;
     };
-  }, [
-    applicationId,
-    copy.errors.load,
-    documentApiToken,
-    onWorkflowStateChange,
-  ]);
+  }, [applicationId, copy.errors.load, onWorkflowStateChange]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">

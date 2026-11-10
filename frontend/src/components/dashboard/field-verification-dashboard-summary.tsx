@@ -10,16 +10,13 @@ import {
 } from "@/lib/field-verification-api";
 
 export function FieldVerificationDashboardSummary() {
-  const { language, documentApiToken } = useDashboard();
+  const { language } = useDashboard();
   const [summary, setSummary] = useState<FieldVerificationSummary | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
-    getFieldQueue(
-      new URLSearchParams({ page: "1", pageSize: "1" }),
-      documentApiToken,
-    )
+    getFieldQueue(new URLSearchParams({ page: "1", pageSize: "1" }))
       .then((result) => {
         if (active) setSummary(result.summary);
       })
@@ -31,7 +28,7 @@ export function FieldVerificationDashboardSummary() {
     return () => {
       active = false;
     };
-  }, [documentApiToken]);
+  }, []);
 
   const labels =
     language === "kn"
